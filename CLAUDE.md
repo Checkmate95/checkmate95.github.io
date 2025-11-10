@@ -16,11 +16,14 @@ The application uses a monolithic architecture with everything in one HTML file:
 
 ### Core Components
 
-**1. IndexedDB Storage (lines 461-652)**
-- Database name: `CodeEditorDB`
-- Single object store: `files` with auto-incrementing `id`
-- Indexes: `path` (unique), `parentId` (non-unique)
-- Files store: `name`, `path`, `content`, `type` (file/folder), `parentId`, `cursorPosition`, timestamps
+**1. IndexedDB Storage (lines 672-708)**
+- Database name: `CodeEditorDB`, Version: 3
+- Object stores:
+  - `files`: Files and folders with auto-incrementing `id`
+    - Indexes: `path` (unique), `parentId` (non-unique)
+    - Fields: `name`, `path`, `content`, `type` (file/folder), `parentId`, `cursorPosition`, timestamps
+  - `jwtSettings`: JWT-specific settings (id: 'default')
+  - `jweSettings`: JWE-specific settings (id: 'default')
 - CRUD operations handle hierarchical folder structures
 - Transaction management: Always fetch data BEFORE starting write transactions to avoid `TransactionInactiveError`
 
@@ -121,18 +124,25 @@ Text transformation functions are organized into dropdown menus in the toolbar:
 **JWT Dropdown** (lines 523-530):
 - Sign JWT: Creates signed JSON Web Tokens
 - Verify JWT: Verifies and decodes JWTs
-- Settings: Configure algorithm, keys, and token claims
+- Settings: Configure algorithm, keys, and token claims (separate modal)
 
 **JWE Dropdown** (lines 532-539):
 - Encrypt JWE: Encrypts JSON payloads
 - Decrypt JWE: Decrypts JWE tokens
-- Settings: Same settings modal as JWT
+- Settings: Configure encryption key and token claims (separate modal)
 
-**Settings Storage** (IndexedDB `jwtSettings` object store):
-- `algorithm`: Selected signing/encryption algorithm (default: 'HS256')
-- `secretKey`: Secret key for HS algorithms and JWE encryption
-- `publicKeyJwk`: Public key in JWK format for RS/ES algorithms
-- `privateKeyJwk`: Private key in JWK format for RS/ES algorithms
+**JWT Settings Storage** (IndexedDB `jwtSettings` object store):
+- `algorithm`: Selected signing algorithm (default: 'HS256')
+- `secretKey`: Secret key for HS algorithms
+- `publicKeyPem`: Public key in PEM format for RS/ES algorithms
+- `privateKeyPem`: Private key in PEM format for RS/ES algorithms
+- `autoIat`: Auto-add issued-at timestamp (default: true)
+- `autoExp`: Auto-add expiration time (default: false)
+- `expDuration`: Expiration duration number (default: 1)
+- `expUnit`: Expiration unit - seconds/minutes/hours/days/months/years (default: 'hours')
+
+**JWE Settings Storage** (IndexedDB `jweSettings` object store):
+- `secretKey`: Secret key for symmetric encryption (separate from JWT, 32+ chars required)
 - `autoIat`: Auto-add issued-at timestamp (default: true)
 - `autoExp`: Auto-add expiration time (default: false)
 - `expDuration`: Expiration duration number (default: 1)
@@ -176,38 +186,73 @@ Text transformation functions are organized into dropdown menus in the toolbar:
 - Decrypts and replaces editor with formatted payload JSON
 - Error handling for expired tokens, wrong keys, corrupted tokens
 
+**PEM Format Support** (lines 1267-1437):
+
+**Conversion Utilities**:
+- `isPEM(data)`: Detects if string is in PEM format
+- `isJWK(data)`: Detects if data is in JWK format (object or JSON string)
+- `detectKeyFormat(input)`: Auto-detects format and key type (public/private)
+- `pemToJwk(pemString, algorithm)`: Converts PEM → JWK using jose library
+- `jwkToPem(jwk, algorithm)`: Converts JWK → PEM using jose library
+- `convertKey(input, targetFormat, algorithm)`: Universal converter
+- `inferAlgorithm(jwk)`: Infers algorithm from JWK structure (kty, crv)
+
+**Storage and Display**:
+- Primary storage format: PEM (in IndexedDB)
+- Display format: User choice via radio buttons (PEM or JWK)
+- Auto-conversion: Pasted keys automatically detected and converted to PEM for storage
+- Format toggle: UI preference not persisted, defaults to PEM on modal open
+
 **Key Management Functions**:
 
-**Generate Key Pair** (line 1388):
-- `generateKeyPair()`: Generates RSA or EC key pairs for RS/ES algorithms
+**Generate Key Pair** (line 1732):
+- `generateJWTKeyPair()`: Generates RSA or EC key pairs for JWT RS/ES algorithms
 - Uses `jose.generateKeyPair()` with extractable option
-- Exports keys to JWK format for IndexedDB storage
-- Updates UI with generated public/private keys
+- Exports to PEM format using `jose.exportSPKI()` (public) and `jose.exportPKCS8()` (private)
+- Stores PEM in `jwtSettings.publicKeyPem` and `jwtSettings.privateKeyPem`
+- Updates UI in current display format (PEM or JWK)
 - Only works for asymmetric algorithms (RS256/384/512, ES256/384/512)
 
-**Get Keys** (lines 1423-1469):
-- `getKeyForAlgorithm()`: Returns appropriate signing key (private for RS/ES, secret for HS)
-- `getPublicKeyForAlgorithm()`: Returns verification key (public for RS/ES, secret for HS)
-- Validates secret key length: HS256=32, HS384=48, HS512=64 bytes minimum
-- Imports JWK keys using `jose.importJWK()`
+**Get Keys** (lines 1766-1824):
+- `getJWTSigningKey()`: Returns JWT signing key (private key for RS/ES, secret for HS)
+- `getJWTVerificationKey()`: Returns JWT verification key (public key for RS/ES, secret for HS)
+- `getJWEKey()`: Returns JWE encryption/decryption key (separate secret, 32+ chars)
+- Validates secret key lengths: HS256=32, HS384=48, HS512=64 bytes minimum
+- Imports PEM keys using `jose.importPKCS8()` (private) and `jose.importSPKI()` (public)
 - Throws errors if keys missing or invalid
 
-**Settings Management** (lines 1260-1385):
-- `initJWTSettings()`: Loads settings from IndexedDB on app startup
-- `loadJWTSettings()`: Retrieves settings from IndexedDB
-- `saveJWTSettings()`: Persists settings to IndexedDB
-- `updateJWTSettingsUI()`: Syncs UI with current settings
+**JWT Settings Management** (lines 1518-1648):
+- `initJWTSettings()`: Loads JWT settings, migrates old JWK to PEM if needed
+- `loadJWTSettings()`: Retrieves JWT settings from IndexedDB
+- `saveJWTSettings()`: Persists JWT settings to IndexedDB
+- `updateJWTSettingsUI()`: Syncs JWT modal UI with current settings
+- `displayJWTKeysInFormat(format)`: Displays keys as PEM or JWK (converts on-the-fly)
+
+**JWE Settings Management** (lines 1541-1697):
+- `initJWESettings()`: Loads JWE settings from IndexedDB
+- `loadJWESettings()`: Retrieves JWE settings from IndexedDB
+- `saveJWESettings()`: Persists JWE settings to IndexedDB
+- `updateJWESettingsUI()`: Syncs JWE modal UI with current settings
+
+**Helper Functions** (lines 1699-1729):
 - `calculateExpiration()`: Converts duration+unit to Unix timestamp
 - `getExpirationString()`: Converts duration+unit to jose format (e.g., "2h", "30d")
 
-**Settings Modal** (lines 561-636):
+**JWT Settings Modal** (lines 579-665):
 - Algorithm dropdown: All 9 supported algorithms
 - Secret key input: For HS algorithms (shows min length requirement)
+- Key format toggle: Radio buttons for PEM ⟷ JWK display format
 - Key pair section: For RS/ES algorithms with generate button
-- Public/private key displays: Read-only textareas with copy buttons
-- Auto IAT checkbox: Automatically set issued-at timestamp
-- Auto EXP checkbox: Automatically set expiration time
-- Expiration config: Duration number + unit dropdown (seconds to years)
+- Public/private key textareas: Editable, accepts both PEM and JWK formats on paste
+- Auto-detection: Pasted keys automatically converted to PEM before saving
+- Copy buttons: Copy displayed keys in current format
+- Auto IAT/EXP configuration: Timestamp and expiration settings
+- Save/Cancel buttons: Persist or discard changes
+
+**JWE Settings Modal** (lines 667-716):
+- Fixed algorithm display: "Direct Encryption (dir) with AES-256 GCM"
+- Secret key input: Minimum 32 characters for AES-256
+- Auto IAT/EXP configuration: Same as JWT
 - Save/Cancel buttons: Persist or discard changes
 
 **Supported Algorithms**:
@@ -299,10 +344,45 @@ To modify QR code parameters, edit the `generateQRCode()` function (line 1447):
 - `type`: 'image/png', 'image/jpeg', or 'image/webp'
 - Additional options: `color.dark`, `color.light` for custom colors
 
+### Using PEM Format Keys
+
+**Pasting PEM Keys**:
+1. Open JWT Settings from JWT dropdown
+2. Select an asymmetric algorithm (RS256/384/512 or ES256/384/512)
+3. Paste PEM-formatted keys directly into Public/Private Key textareas
+4. Keys will be auto-detected and stored in PEM format
+5. Use format toggle to view keys as PEM or JWK
+
+**Pasting JWK Keys**:
+1. Open JWT Settings
+2. Paste JWK (JSON format) into key textareas
+3. Keys will be auto-detected and converted to PEM for storage
+4. Toggle between PEM/JWK display formats as needed
+
+**Importing External Keys**:
+- PEM keys from OpenSSL/other tools can be pasted directly
+- JWK keys from other applications are auto-converted
+- Both PKCS8 and SPKI PEM formats supported
+- Private keys must be in PKCS8 format (starts with `-----BEGIN PRIVATE KEY-----`)
+- Public keys must be in SPKI format (starts with `-----BEGIN PUBLIC KEY-----`)
+
+**Converting Between Formats**:
+The format toggle in JWT Settings allows instant conversion:
+- PEM → JWK: Toggle to JWK radio button, keys displayed as JSON
+- JWK → PEM: Toggle to PEM radio button, keys displayed as PEM text
+- Conversions happen on-the-fly, storage remains PEM
+
 ### Customizing JWT/JWE Behavior
 
+**Separating JWT and JWE Settings**:
+- JWT and JWE now have **separate settings modals**
+- JWT Settings: Algorithm, keys (for signing/verification)
+- JWE Settings: Secret key only (for encryption/decryption)
+- Each has independent Auto IAT/EXP configuration
+- Secret keys are not shared between JWT and JWE
+
 **Adding Additional JWT Claims**:
-Modify `signJWT()` function (line 1483) to add custom claims:
+Modify `signJWT()` function (line 1826) to add custom claims:
 ```javascript
 let jwtBuilder = new jose.SignJWT({
     ...payload,  // Original payload
@@ -312,8 +392,8 @@ let jwtBuilder = new jose.SignJWT({
 })
 ```
 
-**Changing Default Algorithm**:
-Modify initial settings in `jwtSettings` object (line 1261):
+**Changing Default JWT Algorithm**:
+Modify initial JWT settings in `jwtSettings` object (line 1440):
 ```javascript
 let jwtSettings = {
     algorithm: 'RS256',  // Change from 'HS256' to desired default
@@ -322,7 +402,7 @@ let jwtSettings = {
 ```
 
 **Adding Algorithm Validation**:
-Modify `verifyJWT()` function (line 1554) to restrict allowed algorithms:
+Modify `verifyJWT()` function (line 1910) to restrict allowed algorithms:
 ```javascript
 const { payload, protectedHeader } = await jose.jwtVerify(text, key, {
     algorithms: ['HS256', 'RS256'],  // Only allow these algorithms
@@ -330,7 +410,7 @@ const { payload, protectedHeader } = await jose.jwtVerify(text, key, {
 ```
 
 **Customizing JWE Encryption Algorithm**:
-Modify `encryptJWE()` function (line 1611) to change encryption method:
+Modify `encryptJWE()` function (line 1966) to change encryption method:
 ```javascript
 .setProtectedHeader({
     alg: 'A256KW',      // Use AES Key Wrap instead of direct
@@ -339,7 +419,7 @@ Modify `encryptJWE()` function (line 1611) to change encryption method:
 ```
 
 **Adding Issuer/Audience Validation**:
-Add validation to `verifyJWT()` after line 1586:
+Add validation to `verifyJWT()` function (line 1938):
 ```javascript
 const { payload, protectedHeader } = await jose.jwtVerify(text, key, {
     issuer: 'expected-issuer',
@@ -402,17 +482,20 @@ return new Promise((resolve, reject) => {
 ### JWT/JWE Security Considerations
 
 **Key Management**:
+- JWT and JWE use **separate** settings and keys
 - HS algorithms use symmetric keys - same key for sign and verify
 - RS/ES algorithms use asymmetric keys - private key signs, public key verifies
-- Keys stored in IndexedDB in JWK format for easy import/export
+- Keys stored in IndexedDB in **PEM format** (PKCS8 for private, SPKI for public)
+- UI supports both PEM and JWK formats - auto-converts pasted keys to PEM for storage
 - Never expose private keys to untrusted parties
 - Minimum key lengths enforced: HS256=32, HS384=48, HS512=64 bytes
 
 **Cryptographic Operations**:
 - All crypto operations use Web Crypto API via jose library
 - HTTPS required for Web Crypto API (or localhost for development)
-- Keys generated with `extractable: true` to allow export to IndexedDB
-- JWK format used for key storage (JSON Web Key standard)
+- Keys generated with `extractable: true` to allow export to PEM format
+- PEM format used for persistent storage, converted to CryptoKey for operations
+- Runtime conversion: PEM → import → CryptoKey (for jose operations)
 
 **Token Validation**:
 - Always verify JWTs before trusting payload data
