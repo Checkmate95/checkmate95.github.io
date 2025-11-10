@@ -576,11 +576,11 @@
         </div>
     </div>
 
-    <!-- JWT/JWE Settings Modal -->
+    <!-- JWT Settings Modal -->
     <div class="modal" id="jwt-settings-modal">
         <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>JWT/JWE Settings</h2>
+                <h2>JWT Settings</h2>
             </div>
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
@@ -598,25 +598,36 @@
                     </select>
                 </div>
 
-                <div id="secret-key-section" style="margin-bottom: 15px;">
+                <div id="jwt-secret-key-section" style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">Secret Key (minimum 32 chars for HS256):</label>
                     <input type="text" id="jwt-secret-key" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Enter secret key..." />
                     <small style="color: #888; display: block; margin-top: 5px;">HS256: 32+ chars, HS384: 48+ chars, HS512: 64+ chars</small>
                 </div>
 
-                <div id="keypair-section" style="margin-bottom: 15px; display: none;">
+                <div id="jwt-keypair-section" style="margin-bottom: 15px; display: none;">
                     <div style="margin-bottom: 10px;">
-                        <button id="generate-keypair-btn" style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate Key Pair</button>
+                        <label style="display: block; margin-bottom: 5px;">Key Format:</label>
+                        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="jwt-key-format" value="pem" id="jwt-format-pem" checked style="margin-right: 5px;" />
+                                <span>PEM</span>
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="jwt-key-format" value="jwk" id="jwt-format-jwk" style="margin-right: 5px;" />
+                                <span>JWK</span>
+                            </label>
+                        </div>
+                        <button id="jwt-generate-keypair-btn" style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate Key Pair</button>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">Public Key (JWK):</label>
-                        <textarea id="jwt-public-key" readonly style="width: 100%; height: 100px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
-                        <button id="copy-public-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                        <label style="display: block; margin-bottom: 5px;">Public Key:</label>
+                        <textarea id="jwt-public-key" style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="Paste public key (PEM or JWK format)..."></textarea>
+                        <button id="jwt-copy-public-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">Private Key (JWK):</label>
-                        <textarea id="jwt-private-key" readonly style="width: 100%; height: 100px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
-                        <button id="copy-private-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                        <label style="display: block; margin-bottom: 5px;">Private Key:</label>
+                        <textarea id="jwt-private-key" style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="Paste private key (PEM or JWK format)..."></textarea>
+                        <button id="jwt-copy-private-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
                     </div>
                 </div>
 
@@ -631,7 +642,7 @@
                         <span>Auto Exp (Expires At) - Set relative to IAT</span>
                     </label>
 
-                    <div id="exp-config-section" style="margin-left: 28px; display: none;">
+                    <div id="jwt-exp-config-section" style="margin-left: 28px; display: none;">
                         <div style="display: flex; gap: 10px; align-items: center;">
                             <input type="number" id="jwt-exp-duration" min="1" value="1" style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
                             <select id="jwt-exp-unit" style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
@@ -649,6 +660,57 @@
             <div class="modal-footer">
                 <button class="btn-secondary" id="jwt-settings-cancel">Cancel</button>
                 <button class="btn-primary" id="jwt-settings-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JWE Settings Modal -->
+    <div class="modal" id="jwe-settings-modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>JWE Settings</h2>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px; padding: 12px; background: #2d2d2d; border: 1px solid #3e3e42; border-radius: 3px;">
+                    <strong>Encryption Algorithm:</strong> Direct Key Agreement (dir) with AES-256 GCM
+                    <div style="margin-top: 5px; color: #888; font-size: 13px;">Symmetric encryption using a shared secret key</div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Secret Key (minimum 32 characters):</label>
+                    <input type="text" id="jwe-secret-key" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Enter secret key for JWE encryption..." />
+                    <small style="color: #888; display: block; margin-top: 5px;">Must be at least 32 characters for AES-256</small>
+                </div>
+
+                <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwe-auto-iat" style="margin-right: 8px;" checked />
+                        <span>Auto IAT (Issued At) - Set iat to current time</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwe-auto-exp" style="margin-right: 8px;" />
+                        <span>Auto Exp (Expires At) - Set relative to IAT</span>
+                    </label>
+
+                    <div id="jwe-exp-config-section" style="margin-left: 28px; display: none;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="jwe-exp-duration" min="1" value="1" style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
+                            <select id="jwe-exp-unit" style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours" selected>Hours</option>
+                                <option value="days">Days</option>
+                                <option value="months">Months</option>
+                                <option value="years">Years</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="jwe-settings-cancel">Cancel</button>
+                <button class="btn-primary" id="jwe-settings-save">Save</button>
             </div>
         </div>
     </div>
@@ -671,7 +733,7 @@
 
         // ===== IndexedDB Setup =====
         const DB_NAME = 'CodeEditorDB';
-        const DB_VERSION = 2;
+        const DB_VERSION = 3;
         let db;
 
         function initDB() {
@@ -686,6 +748,7 @@
 
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
+                    const oldVersion = event.oldVersion;
 
                     if (!db.objectStoreNames.contains('files')) {
                         const fileStore = db.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
@@ -693,8 +756,14 @@
                         fileStore.createIndex('parentId', 'parentId', { unique: false });
                     }
 
+                    // Version 2: Added jwtSettings (old unified store)
                     if (!db.objectStoreNames.contains('jwtSettings')) {
                         db.createObjectStore('jwtSettings', { keyPath: 'id' });
+                    }
+
+                    // Version 3: Add separate jweSettings store
+                    if (oldVersion < 3 && !db.objectStoreNames.contains('jweSettings')) {
+                        db.createObjectStore('jweSettings', { keyPath: 'id' });
                     }
                 };
             });
@@ -1257,27 +1326,227 @@
             }
         }
 
+        // ===== PEM/JWK Conversion Utilities =====
+
+        /**
+         * Detect if input string is in PEM format
+         */
+        function isPEM(data) {
+            if (typeof data !== 'string') return false;
+            const pemRegex = /^-----BEGIN [A-Z ]+-----[\s\S]+-----END [A-Z ]+-----$/m;
+            return pemRegex.test(data.trim());
+        }
+
+        /**
+         * Detect if input is in JWK format (JSON object)
+         */
+        function isJWK(data) {
+            if (typeof data === 'object' && data !== null && (data.kty || data.use)) {
+                return true;
+            }
+            if (typeof data === 'string') {
+                try {
+                    const parsed = JSON.parse(data);
+                    return parsed.kty || parsed.use;
+                } catch {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Auto-detect key format and type
+         * Returns: { format: 'pem'|'jwk', type: 'public'|'private'|'unknown', data: parsed }
+         */
+        function detectKeyFormat(input) {
+            if (!input) return { format: null, type: 'unknown', data: null };
+
+            const trimmed = typeof input === 'string' ? input.trim() : input;
+
+            // Check PEM format
+            if (isPEM(trimmed)) {
+                const type = trimmed.includes('PRIVATE KEY') ? 'private' :
+                            trimmed.includes('PUBLIC KEY') ? 'public' : 'unknown';
+                return { format: 'pem', type, data: trimmed };
+            }
+
+            // Check JWK format
+            if (isJWK(trimmed)) {
+                const jwk = typeof trimmed === 'string' ? JSON.parse(trimmed) : trimmed;
+                const type = jwk.d ? 'private' : 'public';
+                return { format: 'jwk', type, data: jwk };
+            }
+
+            return { format: null, type: 'unknown', data: null };
+        }
+
+        /**
+         * Convert PEM to JWK format
+         */
+        async function pemToJwk(pemString, algorithm) {
+            if (!pemString || !isPEM(pemString)) {
+                throw new Error('Invalid PEM format');
+            }
+
+            const trimmed = pemString.trim();
+            const isPrivate = trimmed.includes('PRIVATE KEY');
+
+            try {
+                let cryptoKey;
+
+                if (isPrivate) {
+                    // Import private key (always use PKCS8 for private keys)
+                    cryptoKey = await jose.importPKCS8(trimmed, algorithm);
+                } else {
+                    // Import public key (use SPKI for public keys)
+                    cryptoKey = await jose.importSPKI(trimmed, algorithm);
+                }
+
+                // Export to JWK
+                const jwk = await jose.exportJWK(cryptoKey);
+                return jwk;
+            } catch (error) {
+                throw new Error(`Failed to convert PEM to JWK: ${error.message}`);
+            }
+        }
+
+        /**
+         * Convert JWK to PEM format
+         */
+        async function jwkToPem(jwk, algorithm) {
+            if (!jwk || !isJWK(jwk)) {
+                throw new Error('Invalid JWK format');
+            }
+
+            const jwkObj = typeof jwk === 'string' ? JSON.parse(jwk) : jwk;
+            const isPrivate = !!jwkObj.d;
+
+            try {
+                // Import JWK to CryptoKey
+                const cryptoKey = await jose.importJWK(jwkObj, algorithm);
+
+                // Export to PEM format
+                let pem;
+                if (isPrivate) {
+                    pem = await jose.exportPKCS8(cryptoKey);
+                } else {
+                    pem = await jose.exportSPKI(cryptoKey);
+                }
+
+                return pem;
+            } catch (error) {
+                throw new Error(`Failed to convert JWK to PEM: ${error.message}`);
+            }
+        }
+
+        /**
+         * Universal key converter
+         */
+        async function convertKey(input, targetFormat, algorithm) {
+            const detected = detectKeyFormat(input);
+
+            if (!detected.format) {
+                throw new Error('Could not detect key format');
+            }
+
+            if (detected.format === targetFormat) {
+                return detected.data;
+            }
+
+            if (detected.format === 'pem' && targetFormat === 'jwk') {
+                return await pemToJwk(input, algorithm);
+            }
+
+            if (detected.format === 'jwk' && targetFormat === 'pem') {
+                return await jwkToPem(input, algorithm);
+            }
+
+            throw new Error(`Unsupported conversion: ${detected.format} to ${targetFormat}`);
+        }
+
+        /**
+         * Infer algorithm from JWK structure
+         */
+        function inferAlgorithm(jwk) {
+            const jwkObj = typeof jwk === 'string' ? JSON.parse(jwk) : jwk;
+
+            // RSA algorithms
+            if (jwkObj.kty === 'RSA') {
+                return 'RS256'; // Default RSA algorithm
+            }
+
+            // EC algorithms
+            if (jwkObj.kty === 'EC') {
+                const curve = jwkObj.crv;
+                if (curve === 'P-256') return 'ES256';
+                if (curve === 'P-384') return 'ES384';
+                if (curve === 'P-521') return 'ES512';
+            }
+
+            // oct (symmetric) algorithms
+            if (jwkObj.kty === 'oct') {
+                return 'HS256'; // Default symmetric algorithm
+            }
+
+            return null;
+        }
+
         // ===== JWT/JWE Settings Management =====
         let jwtSettings = {
             algorithm: 'HS256',
             secretKey: '',
-            publicKeyJwk: null,
-            privateKeyJwk: null,
+            publicKeyPem: null,
+            privateKeyPem: null,
             autoIat: true,
             autoExp: false,
             expDuration: 1,
             expUnit: 'hours'
         };
 
+        let jweSettings = {
+            secretKey: '',
+            autoIat: true,
+            autoExp: false,
+            expDuration: 1,
+            expUnit: 'hours'
+        };
+
+        // Track current display format for JWT keys (UI preference, not persisted)
+        let jwtKeyDisplayFormat = 'pem';
+
         async function initJWTSettings() {
             const settings = await loadJWTSettings();
             if (settings) {
+                // Migrate old JWK-based settings to PEM if needed
+                if (settings.publicKeyJwk && !settings.publicKeyPem) {
+                    try {
+                        settings.publicKeyPem = await jwkToPem(settings.publicKeyJwk, settings.algorithm);
+                        settings.privateKeyPem = settings.privateKeyJwk ? await jwkToPem(settings.privateKeyJwk, settings.algorithm) : null;
+                        delete settings.publicKeyJwk;
+                        delete settings.privateKeyJwk;
+                        await saveJWTSettings(settings);
+                    } catch (e) {
+                        console.error('Failed to migrate JWK to PEM:', e);
+                    }
+                }
                 jwtSettings = settings;
             } else {
                 // Initialize with default settings
                 await saveJWTSettings(jwtSettings);
             }
             updateJWTSettingsUI();
+        }
+
+        async function initJWESettings() {
+            const settings = await loadJWESettings();
+            if (settings) {
+                jweSettings = settings;
+            } else {
+                // Initialize with default settings
+                await saveJWESettings(jweSettings);
+            }
+            updateJWESettingsUI();
         }
 
         async function loadJWTSettings() {
@@ -1307,7 +1576,34 @@
             });
         }
 
-        function updateJWTSettingsUI() {
+        async function loadJWESettings() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['jweSettings'], 'readonly');
+                const store = transaction.objectStore('jweSettings');
+                const request = store.get('default');
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveJWESettings(settings) {
+            const settingsToSave = {
+                id: 'default',
+                ...settings
+            };
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['jweSettings'], 'readwrite');
+                const store = transaction.objectStore('jweSettings');
+                const request = store.put(settingsToSave);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function updateJWTSettingsUI() {
             const algorithmSelect = document.getElementById('jwt-algorithm');
             const secretKeyInput = document.getElementById('jwt-secret-key');
             const publicKeyTextarea = document.getElementById('jwt-public-key');
@@ -1316,9 +1612,11 @@
             const autoExpCheckbox = document.getElementById('jwt-auto-exp');
             const expDurationInput = document.getElementById('jwt-exp-duration');
             const expUnitSelect = document.getElementById('jwt-exp-unit');
-            const secretKeySection = document.getElementById('secret-key-section');
-            const keypairSection = document.getElementById('keypair-section');
-            const expConfigSection = document.getElementById('exp-config-section');
+            const secretKeySection = document.getElementById('jwt-secret-key-section');
+            const keypairSection = document.getElementById('jwt-keypair-section');
+            const expConfigSection = document.getElementById('jwt-exp-config-section');
+            const formatPemRadio = document.getElementById('jwt-format-pem');
+            const formatJwkRadio = document.getElementById('jwt-format-jwk');
 
             algorithmSelect.value = jwtSettings.algorithm;
             secretKeyInput.value = jwtSettings.secretKey || '';
@@ -1335,21 +1633,67 @@
                 secretKeySection.style.display = 'none';
                 keypairSection.style.display = '';
 
-                if (jwtSettings.publicKeyJwk) {
-                    publicKeyTextarea.value = JSON.stringify(jwtSettings.publicKeyJwk, null, 2);
-                } else {
-                    publicKeyTextarea.value = '';
-                }
-
-                if (jwtSettings.privateKeyJwk) {
-                    privateKeyTextarea.value = JSON.stringify(jwtSettings.privateKeyJwk, null, 2);
-                } else {
-                    privateKeyTextarea.value = '';
-                }
+                // Display keys in current format
+                await displayJWTKeysInFormat(jwtKeyDisplayFormat);
             }
 
             // Show/hide exp config section
             expConfigSection.style.display = jwtSettings.autoExp ? '' : 'none';
+
+            // Set format radio buttons
+            if (formatPemRadio && formatJwkRadio) {
+                formatPemRadio.checked = jwtKeyDisplayFormat === 'pem';
+                formatJwkRadio.checked = jwtKeyDisplayFormat === 'jwk';
+            }
+        }
+
+        async function displayJWTKeysInFormat(format) {
+            const publicKeyTextarea = document.getElementById('jwt-public-key');
+            const privateKeyTextarea = document.getElementById('jwt-private-key');
+
+            try {
+                if (format === 'pem') {
+                    // Display as PEM (stored format)
+                    publicKeyTextarea.value = jwtSettings.publicKeyPem || '';
+                    privateKeyTextarea.value = jwtSettings.privateKeyPem || '';
+                } else if (format === 'jwk') {
+                    // Convert PEM to JWK for display
+                    if (jwtSettings.publicKeyPem) {
+                        const publicJwk = await pemToJwk(jwtSettings.publicKeyPem, jwtSettings.algorithm);
+                        publicKeyTextarea.value = JSON.stringify(publicJwk, null, 2);
+                    } else {
+                        publicKeyTextarea.value = '';
+                    }
+
+                    if (jwtSettings.privateKeyPem) {
+                        const privateJwk = await pemToJwk(jwtSettings.privateKeyPem, jwtSettings.algorithm);
+                        privateKeyTextarea.value = JSON.stringify(privateJwk, null, 2);
+                    } else {
+                        privateKeyTextarea.value = '';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to display keys in format:', format, e);
+                updateStatus(`Failed to convert keys to ${format.toUpperCase()}: ${e.message}`);
+            }
+        }
+
+        function updateJWESettingsUI() {
+            const secretKeyInput = document.getElementById('jwe-secret-key');
+            const autoIatCheckbox = document.getElementById('jwe-auto-iat');
+            const autoExpCheckbox = document.getElementById('jwe-auto-exp');
+            const expDurationInput = document.getElementById('jwe-exp-duration');
+            const expUnitSelect = document.getElementById('jwe-exp-unit');
+            const expConfigSection = document.getElementById('jwe-exp-config-section');
+
+            secretKeyInput.value = jweSettings.secretKey || '';
+            autoIatCheckbox.checked = jweSettings.autoIat;
+            autoExpCheckbox.checked = jweSettings.autoExp;
+            expDurationInput.value = jweSettings.expDuration;
+            expUnitSelect.value = jweSettings.expUnit;
+
+            // Show/hide exp config section
+            expConfigSection.style.display = jweSettings.autoExp ? '' : 'none';
         }
 
         function calculateExpiration(duration, unit) {
@@ -1385,7 +1729,7 @@
         }
 
         // ===== JWT/JWE Key Management =====
-        async function generateKeyPair() {
+        async function generateJWTKeyPair() {
             const algorithm = jwtSettings.algorithm;
 
             if (algorithm.startsWith('HS')) {
@@ -1400,17 +1744,16 @@
                     extractable: true
                 });
 
-                // Export to JWK format for storage
-                const publicJwk = await jose.exportJWK(publicKey);
-                const privateJwk = await jose.exportJWK(privateKey);
+                // Export to PEM format for storage (primary format)
+                const publicPem = await jose.exportSPKI(publicKey);
+                const privatePem = await jose.exportPKCS8(privateKey);
 
-                // Update settings
-                jwtSettings.publicKeyJwk = publicJwk;
-                jwtSettings.privateKeyJwk = privateJwk;
+                // Update settings with PEM format
+                jwtSettings.publicKeyPem = publicPem;
+                jwtSettings.privateKeyPem = privatePem;
 
-                // Update UI
-                document.getElementById('jwt-public-key').value = JSON.stringify(publicJwk, null, 2);
-                document.getElementById('jwt-private-key').value = JSON.stringify(privateJwk, null, 2);
+                // Update UI in current display format
+                await displayJWTKeysInFormat(jwtKeyDisplayFormat);
 
                 updateStatus(`${algorithm} key pair generated successfully`);
                 return true;
@@ -1420,7 +1763,7 @@
             }
         }
 
-        async function getKeyForAlgorithm() {
+        async function getJWTSigningKey() {
             const algorithm = jwtSettings.algorithm;
 
             if (algorithm.startsWith('HS')) {
@@ -1442,30 +1785,42 @@
                 // Convert string to Uint8Array
                 return new TextEncoder().encode(secretKey);
             } else {
-                // Asymmetric key from JWK
-                if (!jwtSettings.privateKeyJwk) {
-                    throw new Error(`No private key found. Please generate a key pair in settings.`);
+                // Asymmetric key from PEM
+                if (!jwtSettings.privateKeyPem) {
+                    throw new Error(`No private key found. Please generate a key pair in JWT settings.`);
                 }
 
-                // Import private key from JWK
-                return await jose.importJWK(jwtSettings.privateKeyJwk, algorithm);
+                // Import private key from PEM
+                return await jose.importPKCS8(jwtSettings.privateKeyPem, algorithm);
             }
         }
 
-        async function getPublicKeyForAlgorithm() {
+        async function getJWTVerificationKey() {
             const algorithm = jwtSettings.algorithm;
 
             if (algorithm.startsWith('HS')) {
                 // Symmetric key - same as signing key
-                return await getKeyForAlgorithm();
+                return await getJWTSigningKey();
             } else {
                 // Asymmetric key - use public key for verification
-                if (!jwtSettings.publicKeyJwk) {
-                    throw new Error(`No public key found. Please generate a key pair in settings.`);
+                if (!jwtSettings.publicKeyPem) {
+                    throw new Error(`No public key found. Please generate a key pair in JWT settings.`);
                 }
 
-                return await jose.importJWK(jwtSettings.publicKeyJwk, algorithm);
+                // Import public key from PEM
+                return await jose.importSPKI(jwtSettings.publicKeyPem, algorithm);
             }
+        }
+
+        function getJWEKey() {
+            const secretKey = jweSettings.secretKey;
+
+            if (!secretKey || secretKey.length < 32) {
+                throw new Error('JWE secret key must be at least 32 characters');
+            }
+
+            // Convert string to Uint8Array for JWE
+            return new TextEncoder().encode(secretKey);
         }
 
         async function copyToClipboard(text, description) {
@@ -1517,8 +1872,8 @@
                     return false;
                 }
 
-                // Get the signing key
-                const key = await getKeyForAlgorithm();
+                // Get the JWT signing key
+                const key = await getJWTSigningKey();
 
                 // Create JWT builder
                 let jwtBuilder = new jose.SignJWT(payload)
@@ -1579,8 +1934,8 @@
             }
 
             try {
-                // Get the verification key (public key for asymmetric, secret for symmetric)
-                const key = await getPublicKeyForAlgorithm();
+                // Get the JWT verification key (public key for asymmetric, secret for symmetric)
+                const key = await getJWTVerificationKey();
 
                 // Verify the JWT
                 const { payload, protectedHeader } = await jose.jwtVerify(text, key);
@@ -1645,16 +2000,8 @@
                     return false;
                 }
 
-                // For JWE, we use a symmetric key (32 chars for 256-bit encryption)
-                const secretKey = jwtSettings.secretKey;
-
-                if (!secretKey || secretKey.length < 32) {
-                    updateStatus('JWE requires a secret key of at least 32 characters. Please set it in settings.');
-                    return false;
-                }
-
-                // Convert string to Uint8Array
-                const key = new TextEncoder().encode(secretKey);
+                // Get the JWE encryption key (separate from JWT)
+                const key = getJWEKey();
 
                 // Create JWE builder
                 let jweBuilder = new jose.EncryptJWT(payload)
@@ -1664,13 +2011,13 @@
                     });
 
                 // Add auto IAT if enabled
-                if (jwtSettings.autoIat) {
+                if (jweSettings.autoIat) {
                     jweBuilder = jweBuilder.setIssuedAt();
                 }
 
                 // Add auto EXP if enabled
-                if (jwtSettings.autoExp) {
-                    const expString = getExpirationString(jwtSettings.expDuration, jwtSettings.expUnit);
+                if (jweSettings.autoExp) {
+                    const expString = getExpirationString(jweSettings.expDuration, jweSettings.expUnit);
                     jweBuilder = jweBuilder.setExpirationTime(expString);
                 }
 
@@ -1718,16 +2065,8 @@
             }
 
             try {
-                // Get the decryption key
-                const secretKey = jwtSettings.secretKey;
-
-                if (!secretKey || secretKey.length < 32) {
-                    updateStatus('JWE requires a secret key of at least 32 characters. Please set it in settings.');
-                    return false;
-                }
-
-                // Convert string to Uint8Array
-                const key = new TextEncoder().encode(secretKey);
+                // Get the JWE decryption key (separate from JWT)
+                const key = getJWEKey();
 
                 // Decrypt the JWE
                 const { payload, protectedHeader } = await jose.jwtDecrypt(text, key);
@@ -3394,11 +3733,11 @@
         });
 
         document.getElementById('jwe-settings').addEventListener('click', () => {
-            openJWTSettings();
+            openJWESettings();
             jweMenu.classList.remove('show');
         });
 
-        // JWT/JWE Settings Modal
+        // JWT Settings Modal
         const jwtSettingsModal = document.getElementById('jwt-settings-modal');
 
         function openJWTSettings() {
@@ -3406,22 +3745,60 @@
             jwtSettingsModal.style.display = 'flex';
         }
 
+        // JWE Settings Modal
+        const jweSettingsModal = document.getElementById('jwe-settings-modal');
+
+        function openJWESettings() {
+            updateJWESettingsUI();
+            jweSettingsModal.style.display = 'flex';
+        }
+
         document.getElementById('jwt-settings-cancel').addEventListener('click', () => {
             jwtSettingsModal.style.display = 'none';
         });
 
         document.getElementById('jwt-settings-save').addEventListener('click', async () => {
-            // Save settings from UI
-            jwtSettings.algorithm = document.getElementById('jwt-algorithm').value;
-            jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
-            jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
-            jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
-            jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
-            jwtSettings.expUnit = document.getElementById('jwt-exp-unit').value;
+            try {
+                // Save settings from UI
+                jwtSettings.algorithm = document.getElementById('jwt-algorithm').value;
+                jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
+                jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
+                jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
+                jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
+                jwtSettings.expUnit = document.getElementById('jwt-exp-unit').value;
 
-            await saveJWTSettings(jwtSettings);
-            jwtSettingsModal.style.display = 'none';
-            updateStatus('JWT/JWE settings saved');
+                // Save key pair from textareas (if asymmetric algorithm)
+                if (!jwtSettings.algorithm.startsWith('HS')) {
+                    const publicKeyText = document.getElementById('jwt-public-key').value.trim();
+                    const privateKeyText = document.getElementById('jwt-private-key').value.trim();
+
+                    if (publicKeyText) {
+                        // Auto-detect format and convert to PEM if needed
+                        const publicDetected = detectKeyFormat(publicKeyText);
+                        if (publicDetected.format === 'jwk') {
+                            jwtSettings.publicKeyPem = await jwkToPem(publicKeyText, jwtSettings.algorithm);
+                        } else if (publicDetected.format === 'pem') {
+                            jwtSettings.publicKeyPem = publicKeyText;
+                        }
+                    }
+
+                    if (privateKeyText) {
+                        // Auto-detect format and convert to PEM if needed
+                        const privateDetected = detectKeyFormat(privateKeyText);
+                        if (privateDetected.format === 'jwk') {
+                            jwtSettings.privateKeyPem = await jwkToPem(privateKeyText, jwtSettings.algorithm);
+                        } else if (privateDetected.format === 'pem') {
+                            jwtSettings.privateKeyPem = privateKeyText;
+                        }
+                    }
+                }
+
+                await saveJWTSettings(jwtSettings);
+                jwtSettingsModal.style.display = 'none';
+                updateStatus('JWT settings saved');
+            } catch (e) {
+                updateStatus(`Failed to save JWT settings: ${e.message}`);
+            }
         });
 
         // Algorithm change handler
@@ -3430,36 +3807,82 @@
             updateJWTSettingsUI();
         });
 
-        // Auto Exp checkbox handler
+        // JWT Auto Exp checkbox handler
         document.getElementById('jwt-auto-exp').addEventListener('change', (e) => {
-            const expConfigSection = document.getElementById('exp-config-section');
+            const expConfigSection = document.getElementById('jwt-exp-config-section');
             expConfigSection.style.display = e.target.checked ? '' : 'none';
         });
 
+        // JWT key format toggle (PEM/JWK radio buttons)
+        document.getElementById('jwt-format-pem').addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                jwtKeyDisplayFormat = 'pem';
+                await displayJWTKeysInFormat('pem');
+            }
+        });
+
+        document.getElementById('jwt-format-jwk').addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                jwtKeyDisplayFormat = 'jwk';
+                await displayJWTKeysInFormat('jwk');
+            }
+        });
+
         // Generate key pair button
-        document.getElementById('generate-keypair-btn').addEventListener('click', () => {
-            generateKeyPair();
+        document.getElementById('jwt-generate-keypair-btn').addEventListener('click', () => {
+            generateJWTKeyPair();
         });
 
         // Copy key buttons
-        document.getElementById('copy-public-key-btn').addEventListener('click', () => {
+        document.getElementById('jwt-copy-public-key-btn').addEventListener('click', () => {
             const publicKey = document.getElementById('jwt-public-key').value;
             if (publicKey) {
                 copyToClipboard(publicKey, 'Public key');
             }
         });
 
-        document.getElementById('copy-private-key-btn').addEventListener('click', () => {
+        document.getElementById('jwt-copy-private-key-btn').addEventListener('click', () => {
             const privateKey = document.getElementById('jwt-private-key').value;
             if (privateKey) {
                 copyToClipboard(privateKey, 'Private key');
             }
         });
 
-        // Close settings modal when clicking outside
+        // Close JWT settings modal when clicking outside
         jwtSettingsModal.addEventListener('click', (e) => {
             if (e.target === jwtSettingsModal) {
                 jwtSettingsModal.style.display = 'none';
+            }
+        });
+
+        // JWE Settings Event Listeners
+        document.getElementById('jwe-settings-cancel').addEventListener('click', () => {
+            jweSettingsModal.style.display = 'none';
+        });
+
+        document.getElementById('jwe-settings-save').addEventListener('click', async () => {
+            // Save JWE settings from UI
+            jweSettings.secretKey = document.getElementById('jwe-secret-key').value;
+            jweSettings.autoIat = document.getElementById('jwe-auto-iat').checked;
+            jweSettings.autoExp = document.getElementById('jwe-auto-exp').checked;
+            jweSettings.expDuration = parseInt(document.getElementById('jwe-exp-duration').value) || 1;
+            jweSettings.expUnit = document.getElementById('jwe-exp-unit').value;
+
+            await saveJWESettings(jweSettings);
+            jweSettingsModal.style.display = 'none';
+            updateStatus('JWE settings saved');
+        });
+
+        // JWE Auto Exp checkbox handler
+        document.getElementById('jwe-auto-exp').addEventListener('change', (e) => {
+            const expConfigSection = document.getElementById('jwe-exp-config-section');
+            expConfigSection.style.display = e.target.checked ? '' : 'none';
+        });
+
+        // Close JWE settings modal when clicking outside
+        jweSettingsModal.addEventListener('click', (e) => {
+            if (e.target === jweSettingsModal) {
+                jweSettingsModal.style.display = 'none';
             }
         });
 
@@ -3495,6 +3918,7 @@
         async function init() {
             await initDB();
             await initJWTSettings();
+            await initJWESettings();
             await renderFileTree();
             initFileTreeDropZone();
             createEditor('', 'json', 'dark');
