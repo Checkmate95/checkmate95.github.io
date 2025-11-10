@@ -1,0 +1,3512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMirror 6 Editor</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "codemirror": "https://esm.sh/codemirror@6.0.1",
+            "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",
+            "@codemirror/view": "https://esm.sh/@codemirror/view@6.26.3",
+            "@codemirror/language": "https://esm.sh/@codemirror/language@6.10.1",
+            "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.3.3",
+            "@codemirror/search": "https://esm.sh/@codemirror/search@6.5.6",
+            "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6.15.0",
+            "@codemirror/lint": "https://esm.sh/@codemirror/lint@6.5.0",
+            "@codemirror/lang-javascript": "https://esm.sh/@codemirror/lang-javascript@6.2.2",
+            "@codemirror/lang-html": "https://esm.sh/@codemirror/lang-html@6.4.8",
+            "@codemirror/lang-css": "https://esm.sh/@codemirror/lang-css@6.2.1",
+            "@codemirror/lang-json": "https://esm.sh/@codemirror/lang-json@6.0.1",
+            "@codemirror/lang-xml": "https://esm.sh/@codemirror/lang-xml@6.1.0",
+            "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6.2.4",
+            "@codemirror/lang-sql": "https://esm.sh/@codemirror/lang-sql@6.6.3",
+            "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6.1.2",
+            "@lezer/common": "https://esm.sh/@lezer/common@1.2.1",
+            "@lezer/highlight": "https://esm.sh/@lezer/highlight@1.2.0",
+            "@lezer/lr": "https://esm.sh/@lezer/lr@1.4.0",
+            "style-mod": "https://esm.sh/style-mod@4.1.2",
+            "w3c-keyname": "https://esm.sh/w3c-keyname@2.2.8",
+            "crelt": "https://esm.sh/crelt@1.0.6",
+            "qrcode": "https://esm.sh/qrcode@1.5.3",
+            "jsqr": "https://esm.sh/jsqr@1.4.0",
+            "jose": "https://esm.sh/jose@5"
+        }
+    }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: #252526;
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid #3e3e42;
+            flex-wrap: wrap;
+        }
+
+        .toolbar button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #1177bb;
+        }
+
+        .toolbar select {
+            background: #3c3c3c;
+            color: white;
+            border: 1px solid #3e3e42;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .toolbar input[type="file"] {
+            display: none;
+        }
+
+        .toolbar label {
+            background: #0e639c;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .toolbar label:hover {
+            background: #1177bb;
+        }
+
+        .toolbar .separator {
+            width: 1px;
+            height: 24px;
+            background: #3e3e42;
+            margin: 0 5px;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #3c3c3c;
+            min-width: 180px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            margin-top: 2px;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-content button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            color: #cccccc;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border-radius: 0;
+        }
+
+        .dropdown-content button:hover {
+            background: #094771;
+        }
+
+        .dropdown-content button:first-child {
+            border-radius: 3px 3px 0 0;
+        }
+
+        .dropdown-content button:last-child {
+            border-radius: 0 0 3px 3px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            border: none;
+        }
+
+        .sidebar-header {
+            padding: 10px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sidebar-actions button {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+
+        .sidebar-actions button:hover {
+            background: #3e3e42;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px 0;
+        }
+
+        .tree-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #cccccc;
+            user-select: none;
+        }
+
+        .tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .tree-item.active {
+            background: #37373d;
+            color: #fff;
+        }
+
+        .tree-item.folder {
+            font-weight: 500;
+        }
+
+        .tree-item .icon {
+            font-size: 14px;
+            width: 16px;
+            text-align: center;
+        }
+
+        .tree-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .tree-item .actions {
+            display: none;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .tree-item:hover .actions {
+            display: flex;
+        }
+
+        .tree-item .actions button {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .tree-item .actions button:hover {
+            background: #3e3e42;
+            color: #fff;
+        }
+
+        .tree-item .actions button.confirm {
+            color: #c5242d;
+        }
+
+        .tree-item .actions button.confirm:hover {
+            background: #c5242d;
+            color: #fff;
+        }
+
+        .tree-item .actions button.cancel {
+            color: #cccccc;
+        }
+
+        .tree-item .actions button.cancel:hover {
+            background: #3e3e42;
+            color: #fff;
+        }
+
+        .tree-item.indent-1 {
+            padding-left: 24px;
+        }
+
+        .tree-item.indent-2 {
+            padding-left: 40px;
+        }
+
+        .tree-item.indent-3 {
+            padding-left: 56px;
+        }
+
+        /* Drag and drop styles */
+        .tree-item.dragging {
+            opacity: 0.4;
+        }
+
+        .tree-item.drag-over {
+            background: #094771 !important;
+            border-left: 3px solid #007acc;
+        }
+
+        .tree-item[draggable="true"] {
+            cursor: grab;
+        }
+
+        .tree-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+
+        #editor-container {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .cm-editor {
+            height: 100%;
+        }
+
+        .cm-scroller {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            background: #007acc;
+            color: white;
+            padding: 4px 15px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #252526;
+            padding: 20px;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            min-width: 400px;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            margin-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-body label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #cccccc;
+        }
+
+        .modal-body input {
+            width: 100%;
+            padding: 8px;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .modal-body input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-footer button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .modal-footer .btn-primary {
+            background: #0e639c;
+            color: white;
+        }
+
+        .modal-footer .btn-primary:hover {
+            background: #1177bb;
+        }
+
+        .modal-footer .btn-secondary {
+            background: #3c3c3c;
+            color: white;
+        }
+
+        .modal-footer .btn-secondary:hover {
+            background: #4c4c4c;
+        }
+
+        .modal-footer .btn-danger {
+            background: #c5242d;
+            color: white;
+        }
+
+        .modal-footer .btn-danger:hover {
+            background: #e81224;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <button id="toggle-sidebar-btn">☰</button>
+
+        <label for="file-upload">Import File</label>
+        <input type="file" id="file-upload" />
+
+        <div class="separator"></div>
+
+        <div class="dropdown">
+            <button id="format-btn">Format ▾</button>
+            <div class="dropdown-content" id="format-menu">
+                <button id="format-code">Format Code</button>
+                <button id="minify-code">Minify Code</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="convert-case-btn">Convert Case ▾</button>
+            <div class="dropdown-content" id="convert-case-menu">
+                <button id="convert-pascal">PascalCase</button>
+                <button id="convert-camel">camelCase</button>
+                <button id="convert-snake">snake_case</button>
+                <button id="convert-upper">UPPERCASE</button>
+                <button id="convert-lower">lowercase</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="escape-unescape-btn">Escape/Unescape ▾</button>
+            <div class="dropdown-content" id="escape-unescape-menu">
+                <button id="escape-js">Escape JavaScript/JSON</button>
+                <button id="unescape-js">Unescape JavaScript/JSON</button>
+                <button id="encode-url">URL Encode</button>
+                <button id="decode-url">URL Decode</button>
+                <button id="encode-full-url">URL Encode (Full URI)</button>
+                <button id="decode-full-url">URL Decode (Full URI)</button>
+                <button id="escape-html">Escape HTML</button>
+                <button id="unescape-html">Unescape HTML</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="base64-btn">Base64 ▾</button>
+            <div class="dropdown-content" id="base64-menu">
+                <button id="encode-base64">Encode Base64</button>
+                <button id="decode-base64">Decode Base64 (Preview)</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="qrcode-btn">QR Code ▾</button>
+            <div class="dropdown-content" id="qrcode-menu">
+                <button id="generate-qrcode">Generate QR Code</button>
+                <button id="read-qrcode">Read QR Code</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="jwt-btn">JWT ▾</button>
+            <div class="dropdown-content" id="jwt-menu">
+                <button id="jwt-sign">Sign JWT</button>
+                <button id="jwt-verify">Verify JWT</button>
+                <button id="jwt-settings">Settings</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="jwe-btn">JWE ▾</button>
+            <div class="dropdown-content" id="jwe-menu">
+                <button id="jwe-encrypt">Encrypt JWE</button>
+                <button id="jwe-decrypt">Decrypt JWE</button>
+                <button id="jwe-settings">Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>FILES</h3>
+                <div class="sidebar-actions">
+                    <button id="new-file-sidebar-btn" title="New File">📄</button>
+                    <button id="new-folder-btn" title="New Folder">📁</button>
+                </div>
+            </div>
+            <div class="file-tree" id="file-tree"></div>
+        </div>
+
+        <div id="editor-container"></div>
+    </div>
+
+    <div class="status-bar">
+        <span id="status-info">Ready</span>
+        <span id="cursor-info">Ln 1, Col 1</span>
+    </div>
+
+    <!-- Rename/Create Modal -->
+    <div class="modal" id="rename-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Rename</h2>
+            </div>
+            <div class="modal-body">
+                <label id="modal-label">Name:</label>
+                <input type="text" id="modal-input" />
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="modal-cancel">Cancel</button>
+                <button class="btn-primary" id="modal-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JWT/JWE Settings Modal -->
+    <div class="modal" id="jwt-settings-modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>JWT/JWE Settings</h2>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Algorithm:</label>
+                    <select id="jwt-algorithm" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                        <option value="HS256">HS256 (HMAC + SHA-256)</option>
+                        <option value="HS384">HS384 (HMAC + SHA-384)</option>
+                        <option value="HS512">HS512 (HMAC + SHA-512)</option>
+                        <option value="RS256">RS256 (RSA + SHA-256)</option>
+                        <option value="RS384">RS384 (RSA + SHA-384)</option>
+                        <option value="RS512">RS512 (RSA + SHA-512)</option>
+                        <option value="ES256">ES256 (ECDSA + SHA-256)</option>
+                        <option value="ES384">ES384 (ECDSA + SHA-384)</option>
+                        <option value="ES512">ES512 (ECDSA + SHA-512)</option>
+                    </select>
+                </div>
+
+                <div id="secret-key-section" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Secret Key (minimum 32 chars for HS256):</label>
+                    <input type="text" id="jwt-secret-key" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Enter secret key..." />
+                    <small style="color: #888; display: block; margin-top: 5px;">HS256: 32+ chars, HS384: 48+ chars, HS512: 64+ chars</small>
+                </div>
+
+                <div id="keypair-section" style="margin-bottom: 15px; display: none;">
+                    <div style="margin-bottom: 10px;">
+                        <button id="generate-keypair-btn" style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate Key Pair</button>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px;">Public Key (JWK):</label>
+                        <textarea id="jwt-public-key" readonly style="width: 100%; height: 100px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                        <button id="copy-public-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px;">Private Key (JWK):</label>
+                        <textarea id="jwt-private-key" readonly style="width: 100%; height: 100px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                        <button id="copy-private-key-btn" style="padding: 4px 12px; margin-top: 5px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwt-auto-iat" style="margin-right: 8px;" checked />
+                        <span>Auto IAT (Issued At) - Set iat to current time</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwt-auto-exp" style="margin-right: 8px;" />
+                        <span>Auto Exp (Expires At) - Set relative to IAT</span>
+                    </label>
+
+                    <div id="exp-config-section" style="margin-left: 28px; display: none;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="jwt-exp-duration" min="1" value="1" style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
+                            <select id="jwt-exp-unit" style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours" selected>Hours</option>
+                                <option value="days">Days</option>
+                                <option value="months">Months</option>
+                                <option value="years">Years</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="jwt-settings-cancel">Cancel</button>
+                <button class="btn-primary" id="jwt-settings-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { EditorView, basicSetup } from 'codemirror';
+        import { EditorState } from '@codemirror/state';
+        import { javascript } from '@codemirror/lang-javascript';
+        import { html } from '@codemirror/lang-html';
+        import { css } from '@codemirror/lang-css';
+        import { json } from '@codemirror/lang-json';
+        import { xml } from '@codemirror/lang-xml';
+        import { markdown } from '@codemirror/lang-markdown';
+        import { sql } from '@codemirror/lang-sql';
+        import { oneDark } from '@codemirror/theme-one-dark';
+        import { search, highlightSelectionMatches } from '@codemirror/search';
+        import QRCode from 'qrcode';
+        import jsQR from 'jsqr';
+        import * as jose from 'jose';
+
+        // ===== IndexedDB Setup =====
+        const DB_NAME = 'CodeEditorDB';
+        const DB_VERSION = 2;
+        let db;
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    if (!db.objectStoreNames.contains('files')) {
+                        const fileStore = db.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+                        fileStore.createIndex('path', 'path', { unique: true });
+                        fileStore.createIndex('parentId', 'parentId', { unique: false });
+                    }
+
+                    if (!db.objectStoreNames.contains('jwtSettings')) {
+                        db.createObjectStore('jwtSettings', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        // CRUD Operations
+        async function createFile(name, content = '', parentId = null) {
+            const path = parentId ? `${await getItemPath(parentId)}/${name}` : name;
+            const transaction = db.transaction(['files'], 'readwrite');
+            const store = transaction.objectStore('files');
+
+            const file = {
+                name,
+                path,
+                content,
+                type: 'file',
+                parentId,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            return new Promise((resolve, reject) => {
+                const request = store.add(file);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function createFolder(name, parentId = null) {
+            const path = parentId ? `${await getItemPath(parentId)}/${name}` : name;
+            const transaction = db.transaction(['files'], 'readwrite');
+            const store = transaction.objectStore('files');
+
+            const folder = {
+                name,
+                path,
+                type: 'folder',
+                parentId,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            return new Promise((resolve, reject) => {
+                const request = store.add(folder);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getItem(id) {
+            const transaction = db.transaction(['files'], 'readonly');
+            const store = transaction.objectStore('files');
+
+            return new Promise((resolve, reject) => {
+                const request = store.get(id);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getItemPath(id) {
+            const item = await getItem(id);
+            return item ? item.path : '';
+        }
+
+        async function getAllItems() {
+            const transaction = db.transaction(['files'], 'readonly');
+            const store = transaction.objectStore('files');
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function updateFile(id, updates) {
+            // Get the item BEFORE starting the transaction
+            const item = await getItem(id);
+
+            if (!item) return;
+
+            const updated = {
+                ...item,
+                ...updates,
+                updatedAt: new Date()
+            };
+
+            // Now start the transaction for the update
+            const transaction = db.transaction(['files'], 'readwrite');
+            const store = transaction.objectStore('files');
+
+            return new Promise((resolve, reject) => {
+                const request = store.put(updated);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteItem(id) {
+            // Get all children recursively BEFORE starting the transaction
+            const items = await getAllItems();
+            const toDelete = [id];
+            const findChildren = (parentId) => {
+                items.forEach(item => {
+                    if (item.parentId === parentId) {
+                        toDelete.push(item.id);
+                        if (item.type === 'folder') {
+                            findChildren(item.id);
+                        }
+                    }
+                });
+            };
+            findChildren(id);
+
+            // Now start the transaction and delete all items
+            const transaction = db.transaction(['files'], 'readwrite');
+            const store = transaction.objectStore('files');
+            return Promise.all(toDelete.map(itemId => {
+                return new Promise((resolve, reject) => {
+                    const request = store.delete(itemId);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }));
+        }
+
+        async function renameItem(id, newName) {
+            const item = await getItem(id);
+            if (!item) return;
+
+            const newPath = item.parentId
+                ? `${await getItemPath(item.parentId)}/${newName}`
+                : newName;
+
+            await updateFile(id, { name: newName, path: newPath });
+
+            // Update all children paths if folder
+            if (item.type === 'folder') {
+                const items = await getAllItems();
+                const updateChildren = async (parentId, oldPath, newPath) => {
+                    const children = items.filter(i => i.parentId === parentId);
+                    for (const child of children) {
+                        const childNewPath = child.path.replace(oldPath, newPath);
+                        await updateFile(child.id, { path: childNewPath });
+                        if (child.type === 'folder') {
+                            await updateChildren(child.id, child.path, childNewPath);
+                        }
+                    }
+                };
+                await updateChildren(id, item.path, newPath);
+            }
+        }
+
+        async function moveItem(itemId, newParentId) {
+            const item = await getItem(itemId);
+            if (!item) return false;
+
+            // Prevent moving item into itself
+            if (itemId === newParentId) return false;
+
+            // Prevent moving folder into its own descendant
+            if (item.type === 'folder' && newParentId) {
+                const items = await getAllItems();
+                const isDescendant = (checkId, ancestorId) => {
+                    const checkItem = items.find(i => i.id === checkId);
+                    if (!checkItem || !checkItem.parentId) return false;
+                    if (checkItem.parentId === ancestorId) return true;
+                    return isDescendant(checkItem.parentId, ancestorId);
+                };
+                if (isDescendant(newParentId, itemId)) return false;
+            }
+
+            // Calculate new path
+            const newPath = newParentId
+                ? `${await getItemPath(newParentId)}/${item.name}`
+                : item.name;
+
+            // Update item
+            await updateFile(itemId, { parentId: newParentId, path: newPath });
+
+            // Update all children paths if folder
+            if (item.type === 'folder') {
+                const items = await getAllItems();
+                const updateChildren = async (parentId, oldPath, newPath) => {
+                    const children = items.filter(i => i.parentId === parentId);
+                    for (const child of children) {
+                        const childNewPath = child.path.replace(oldPath, newPath);
+                        await updateFile(child.id, { path: childNewPath });
+                        if (child.type === 'folder') {
+                            await updateChildren(child.id, child.path, childNewPath);
+                        }
+                    }
+                };
+                await updateChildren(itemId, item.path, newPath);
+            }
+
+            return true;
+        }
+
+        async function getNextUntitledName() {
+            const items = await getAllItems();
+            const untitledFiles = items.filter(item =>
+                item.type === 'file' && item.name.match(/^Untitled(\s\(\d+\))?$/)
+            );
+
+            if (untitledFiles.length === 0) return 'Untitled';
+
+            const numbers = untitledFiles.map(file => {
+                const match = file.name.match(/^Untitled\s\((\d+)\)$/);
+                return match ? parseInt(match[1]) : 0;
+            });
+
+            const maxNumber = Math.max(...numbers);
+            return `Untitled (${maxNumber + 1})`;
+        }
+
+        // ===== Editor State =====
+        const languageMap = {
+            javascript: () => javascript({ jsx: true, typescript: false }),
+            typescript: () => javascript({ jsx: true, typescript: true }),
+            html: () => html(),
+            css: () => css(),
+            json: () => json(),
+            xml: () => xml(),
+            markdown: () => markdown(),
+            sql: () => sql(),
+            plaintext: () => []
+        };
+
+        const extensionMap = {
+            'js': 'javascript',
+            'jsx': 'javascript',
+            'ts': 'typescript',
+            'tsx': 'typescript',
+            'html': 'html',
+            'htm': 'html',
+            'css': 'css',
+            'json': 'json',
+            'xml': 'xml',
+            'md': 'markdown',
+            'markdown': 'markdown',
+            'sql': 'sql',
+            'txt': 'plaintext'
+        };
+
+        let currentTheme = 'dark';
+        let currentFileId = null;
+        let isDirty = false;
+        let view;
+
+        // ===== Editor Functions =====
+        function createEditor(content = '', language = 'javascript', theme = 'dark') {
+            const container = document.getElementById('editor-container');
+            container.innerHTML = '';
+
+            const extensions = [
+                basicSetup,
+                search({ top: true }),
+                highlightSelectionMatches(),
+                EditorView.updateListener.of((update) => {
+                    if (update.selectionSet) {
+                        updateCursorInfo();
+                    }
+                })
+            ];
+
+            const langExtension = languageMap[language];
+            if (langExtension) {
+                extensions.push(langExtension());
+            }
+
+            if (theme === 'dark') {
+                extensions.push(oneDark);
+            }
+
+            view = new EditorView({
+                doc: content,
+                extensions: extensions,
+                parent: container
+            });
+
+            updateCursorInfo();
+        }
+
+        async function updateCursorInfo() {
+            if (!view) return;
+            const state = view.state;
+            const selection = state.selection.main;
+            const pos = selection.head;
+            const line = state.doc.lineAt(pos);
+            const lineNumber = line.number;
+            const col = pos - line.from + 1;
+
+            // Calculate lengths
+            const totalLength = state.doc.length;
+            const hasSelection = selection.anchor !== selection.head;
+            const selectedLength = hasSelection
+                ? Math.abs(selection.head - selection.anchor)
+                : 0;
+
+            let cursorText = `Ln ${lineNumber}, Col ${col}`;
+
+            // Add length info
+            if (hasSelection) {
+                cursorText += ` | ${selectedLength}/${totalLength}`;
+            } else {
+                cursorText += ` | Length: ${totalLength}`;
+            }
+
+            // Add JSON path if current file is JSON
+            if (currentFileId) {
+                const file = await getItem(currentFileId);
+                if (file && detectLanguageFromFilename(file.name) === 'json') {
+                    const jsonPath = getJsonPath(state);
+                    if (jsonPath) {
+                        cursorText = `${jsonPath} | ${cursorText}`;
+                    }
+                }
+            }
+
+            document.getElementById('cursor-info').textContent = cursorText;
+        }
+
+        function updateLanguage(language) {
+            const content = view.state.doc.toString();
+            createEditor(content, language, currentTheme);
+        }
+
+        function updateStatus(message) {
+            const statusInfo = document.getElementById('status-info');
+            statusInfo.textContent = message;
+            setTimeout(() => {
+                statusInfo.textContent = 'Ready';
+            }, 3000);
+        }
+
+        // Get JSON path from cursor position
+        function getJsonPath(state) {
+            try {
+
+                const tree = state.tree
+
+                // Validate tree is populated
+                if (!tree || tree.length === 0) {
+                    return null;
+                }
+
+                const pos = state.selection.main.head;
+                let node = tree.resolve(pos, 0);
+                const path = [];
+
+                while (node) {
+
+                    // Handle object properties
+                    if (node.name === "Property") {
+                        // Find PropertyName child using proper iteration
+                        let child = node.firstChild;
+                        while (child) {
+                            if (child.name === "PropertyName") {
+                                let name = state.doc.sliceString(child.from, child.to);
+                                // Remove quotes from property name
+                                name = name.replace(/^["']|["']$/g, '');
+
+                                // Check if path[0] is an array index marker (starts with '[')
+                                if (path.length > 0 && path[0].startsWith('[')) {
+                                    name = name + path[0]; // Combine property with array index
+                                    path.shift(); // Remove the array index marker
+                                }
+
+                                path.unshift(name);
+                                break;
+                            }
+                            child = child.nextSibling;
+                        }
+                    }
+                    // Handle array elements (but not bracket tokens)
+                    else if (node.parent && node.parent.name === "Array" &&
+                        node.name !== "[" && node.name !== "]") {
+                        // Count how many siblings come before this node to get index
+                        let index = 0;
+                        let sibling = node.prevSibling;
+                        while (sibling) {
+                            // Only count actual JSON value nodes (array elements)
+                            if (sibling.name === "Object" ||
+                                sibling.name === "Array" ||
+                                sibling.name === "String" ||
+                                sibling.name === "Number" ||
+                                sibling.name === "True" ||
+                                sibling.name === "False" ||
+                                sibling.name === "Null") {
+                                index++;
+                            }
+                            sibling = sibling.prevSibling;
+                        }
+                        // Store array index as separate marker to be combined with parent property
+                        path.unshift(`[${index}]`);
+                    }
+
+                    // Move to parent
+                    node = node.parent;
+
+                    // Stop at root
+                    if (!node || node.name === "JsonText") break;
+                }
+
+                return path.length > 0 ? path.join('.') : 'root';
+            } catch (e) {
+                console.error('Error in getJsonPath:', e);
+                return '';
+            }
+        }
+
+        // Reconstruct nested JSON structure from path and value
+        function reconstructJsonFromPath(path, value) {
+            if (path === 'root') {
+                // At root level, return value as-is
+                return value;
+            }
+
+            // Split path into segments (e.g., "information.details[1].data" -> ["information", "details[1]", "data"])
+            const segments = path.split('.');
+
+            // Parse each segment to extract property name and optional array index
+            const parsedSegments = segments.map(seg => {
+                const arrayMatch = seg.match(/^(.+?)\[(\d+)\]$/);
+                if (arrayMatch) {
+                    return { property: arrayMatch[1], index: parseInt(arrayMatch[2]) };
+                }
+                return { property: seg, index: null };
+            });
+
+            // Build nested structure from inside-out (deepest to shallowest)
+            let result = value;
+
+            for (let i = parsedSegments.length - 1; i >= 0; i--) {
+                const segment = parsedSegments[i];
+
+                if (segment.index !== null) {
+                    // Create array with value as first element (ignore original index)
+                    const arr = [result];
+                    // Wrap array in object with property name
+                    result = { [segment.property]: arr };
+                } else {
+                    // Wrap in object with property name
+                    result = { [segment.property]: result };
+                }
+            }
+
+            return result;
+        }
+
+        // Copy JSON subtree based on current cursor position and path
+        async function copyJsonSubtree() {
+            if (!view) return false;
+
+            const state = view.state;
+
+            // Only works for JSON files
+            if (currentFileId) {
+                const file = await getItem(currentFileId);
+                if (!file || detectLanguageFromFilename(file.name) !== 'json') {
+                    updateStatus('This feature only works with JSON files');
+                    return false;
+                }
+            } else {
+                updateStatus('No file is currently open');
+                return false;
+            }
+
+            // Get the JSON path
+            const path = getJsonPath(state);
+            if (!path) {
+                updateStatus('Could not determine JSON path');
+                return false;
+            }
+
+            const tree = state.tree;
+
+            if (!tree || tree.length === 0) {
+                updateStatus('JSON parsing failed');
+                return false;
+            }
+
+            // Find the node at cursor
+            const pos = state.selection.main.head;
+            let node = tree.resolve(pos, 0);
+
+            // Check if cursor is on or inside an array element
+            let isArrayElement = false;
+            let checkNode = node;
+            while (checkNode && checkNode.name !== "Property" && checkNode.name !== "JsonText") {
+                if (checkNode.parent && checkNode.parent.name === "Array" &&
+                    checkNode.name !== "[" && checkNode.name !== "]") {
+                    isArrayElement = true;
+                    // Move node pointer to the actual array element (the value node)
+                    node = checkNode;
+                    break;
+                }
+                checkNode = checkNode.parent;
+            }
+
+            if (!isArrayElement) {
+                // Cursor is on property value - navigate up to Property node
+                while (node && node.name !== "Property") {
+                    node = node.parent;
+                    if (!node || node.name === "JsonText") {
+                        node = null;
+                        break;
+                    }
+                }
+
+                // Get the value child of the Property node (skip PropertyName)
+                if (node && node.name === "Property") {
+                    let child = node.firstChild;
+                    const valueNodeTypes = ['Object', 'Array', 'String', 'Number', 'True', 'False', 'Null'];
+
+                    while (child) {
+                        if (valueNodeTypes.includes(child.name)) {
+                            node = child;
+                            break;
+                        }
+                        child = child.nextSibling;
+                    }
+                }
+            }
+            // If isArrayElement is true, node already points to the array element - use it directly
+
+            if (!node) {
+                updateStatus('Could not find JSON value at cursor');
+                return false;
+            }
+
+            // Extract the value text
+            const valueText = state.doc.sliceString(node.from, node.to);
+
+            // Parse the value
+            let value;
+            try {
+                value = JSON.parse(valueText);
+            } catch (e) {
+                updateStatus('Invalid JSON at cursor position');
+                return false;
+            }
+
+            // Reconstruct the minimal JSON structure
+            const reconstructed = reconstructJsonFromPath(path, value);
+
+            // Format with 2-space indentation
+            const formattedJson = JSON.stringify(reconstructed, null, 2);
+
+            // Copy to clipboard
+            try {
+                await navigator.clipboard.writeText(formattedJson);
+                updateStatus(`Copied JSON subtree`);
+                return true;
+            } catch (e) {
+                updateStatus('Failed to copy to clipboard');
+                return false;
+            }
+        }
+
+        // ===== JWT/JWE Settings Management =====
+        let jwtSettings = {
+            algorithm: 'HS256',
+            secretKey: '',
+            publicKeyJwk: null,
+            privateKeyJwk: null,
+            autoIat: true,
+            autoExp: false,
+            expDuration: 1,
+            expUnit: 'hours'
+        };
+
+        async function initJWTSettings() {
+            const settings = await loadJWTSettings();
+            if (settings) {
+                jwtSettings = settings;
+            } else {
+                // Initialize with default settings
+                await saveJWTSettings(jwtSettings);
+            }
+            updateJWTSettingsUI();
+        }
+
+        async function loadJWTSettings() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['jwtSettings'], 'readonly');
+                const store = transaction.objectStore('jwtSettings');
+                const request = store.get('default');
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveJWTSettings(settings) {
+            const settingsToSave = {
+                id: 'default',
+                ...settings
+            };
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['jwtSettings'], 'readwrite');
+                const store = transaction.objectStore('jwtSettings');
+                const request = store.put(settingsToSave);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function updateJWTSettingsUI() {
+            const algorithmSelect = document.getElementById('jwt-algorithm');
+            const secretKeyInput = document.getElementById('jwt-secret-key');
+            const publicKeyTextarea = document.getElementById('jwt-public-key');
+            const privateKeyTextarea = document.getElementById('jwt-private-key');
+            const autoIatCheckbox = document.getElementById('jwt-auto-iat');
+            const autoExpCheckbox = document.getElementById('jwt-auto-exp');
+            const expDurationInput = document.getElementById('jwt-exp-duration');
+            const expUnitSelect = document.getElementById('jwt-exp-unit');
+            const secretKeySection = document.getElementById('secret-key-section');
+            const keypairSection = document.getElementById('keypair-section');
+            const expConfigSection = document.getElementById('exp-config-section');
+
+            algorithmSelect.value = jwtSettings.algorithm;
+            secretKeyInput.value = jwtSettings.secretKey || '';
+            autoIatCheckbox.checked = jwtSettings.autoIat;
+            autoExpCheckbox.checked = jwtSettings.autoExp;
+            expDurationInput.value = jwtSettings.expDuration;
+            expUnitSelect.value = jwtSettings.expUnit;
+
+            // Show/hide sections based on algorithm
+            if (jwtSettings.algorithm.startsWith('HS')) {
+                secretKeySection.style.display = '';
+                keypairSection.style.display = 'none';
+            } else {
+                secretKeySection.style.display = 'none';
+                keypairSection.style.display = '';
+
+                if (jwtSettings.publicKeyJwk) {
+                    publicKeyTextarea.value = JSON.stringify(jwtSettings.publicKeyJwk, null, 2);
+                } else {
+                    publicKeyTextarea.value = '';
+                }
+
+                if (jwtSettings.privateKeyJwk) {
+                    privateKeyTextarea.value = JSON.stringify(jwtSettings.privateKeyJwk, null, 2);
+                } else {
+                    privateKeyTextarea.value = '';
+                }
+            }
+
+            // Show/hide exp config section
+            expConfigSection.style.display = jwtSettings.autoExp ? '' : 'none';
+        }
+
+        function calculateExpiration(duration, unit) {
+            const now = Math.floor(Date.now() / 1000);
+            const multipliers = {
+                seconds: 1,
+                minutes: 60,
+                hours: 3600,
+                days: 86400,
+                months: 2592000,  // 30 days
+                years: 31536000   // 365 days
+            };
+            return now + (duration * multipliers[unit]);
+        }
+
+        function getExpirationString(duration, unit) {
+            const unitMap = {
+                seconds: 's',
+                minutes: 'm',
+                hours: 'h',
+                days: 'd',
+                months: 'd',  // Convert months to days
+                years: 'd'    // Convert years to days
+            };
+
+            if (unit === 'months') {
+                return `${duration * 30}d`;
+            } else if (unit === 'years') {
+                return `${duration * 365}d`;
+            } else {
+                return `${duration}${unitMap[unit]}`;
+            }
+        }
+
+        // ===== JWT/JWE Key Management =====
+        async function generateKeyPair() {
+            const algorithm = jwtSettings.algorithm;
+
+            if (algorithm.startsWith('HS')) {
+                updateStatus('HS algorithms use symmetric keys, not key pairs');
+                return false;
+            }
+
+            try {
+                updateStatus(`Generating ${algorithm} key pair...`);
+
+                const { publicKey, privateKey } = await jose.generateKeyPair(algorithm, {
+                    extractable: true
+                });
+
+                // Export to JWK format for storage
+                const publicJwk = await jose.exportJWK(publicKey);
+                const privateJwk = await jose.exportJWK(privateKey);
+
+                // Update settings
+                jwtSettings.publicKeyJwk = publicJwk;
+                jwtSettings.privateKeyJwk = privateJwk;
+
+                // Update UI
+                document.getElementById('jwt-public-key').value = JSON.stringify(publicJwk, null, 2);
+                document.getElementById('jwt-private-key').value = JSON.stringify(privateJwk, null, 2);
+
+                updateStatus(`${algorithm} key pair generated successfully`);
+                return true;
+            } catch (e) {
+                updateStatus(`Failed to generate key pair: ${e.message}`);
+                return false;
+            }
+        }
+
+        async function getKeyForAlgorithm() {
+            const algorithm = jwtSettings.algorithm;
+
+            if (algorithm.startsWith('HS')) {
+                // Symmetric key from string
+                const secretKey = jwtSettings.secretKey;
+
+                // Validate key length
+                const minLengths = {
+                    'HS256': 32,
+                    'HS384': 48,
+                    'HS512': 64
+                };
+
+                const minLength = minLengths[algorithm];
+                if (!secretKey || secretKey.length < minLength) {
+                    throw new Error(`Secret key must be at least ${minLength} characters for ${algorithm}`);
+                }
+
+                // Convert string to Uint8Array
+                return new TextEncoder().encode(secretKey);
+            } else {
+                // Asymmetric key from JWK
+                if (!jwtSettings.privateKeyJwk) {
+                    throw new Error(`No private key found. Please generate a key pair in settings.`);
+                }
+
+                // Import private key from JWK
+                return await jose.importJWK(jwtSettings.privateKeyJwk, algorithm);
+            }
+        }
+
+        async function getPublicKeyForAlgorithm() {
+            const algorithm = jwtSettings.algorithm;
+
+            if (algorithm.startsWith('HS')) {
+                // Symmetric key - same as signing key
+                return await getKeyForAlgorithm();
+            } else {
+                // Asymmetric key - use public key for verification
+                if (!jwtSettings.publicKeyJwk) {
+                    throw new Error(`No public key found. Please generate a key pair in settings.`);
+                }
+
+                return await jose.importJWK(jwtSettings.publicKeyJwk, algorithm);
+            }
+        }
+
+        async function copyToClipboard(text, description) {
+            try {
+                await navigator.clipboard.writeText(text);
+                updateStatus(`${description} copied to clipboard`);
+                return true;
+            } catch (e) {
+                updateStatus(`Failed to copy: ${e.message}`);
+                return false;
+            }
+        }
+
+        // ===== JWT Operations =====
+        async function signJWT() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No content to sign');
+                return false;
+            }
+
+            try {
+                // Parse the content as JSON for the payload
+                let payload;
+                try {
+                    payload = JSON.parse(text);
+                } catch (e) {
+                    updateStatus('Content must be valid JSON for JWT payload');
+                    return false;
+                }
+
+                // Get the signing key
+                const key = await getKeyForAlgorithm();
+
+                // Create JWT builder
+                let jwtBuilder = new jose.SignJWT(payload)
+                    .setProtectedHeader({ alg: jwtSettings.algorithm });
+
+                // Add auto IAT if enabled
+                if (jwtSettings.autoIat) {
+                    jwtBuilder = jwtBuilder.setIssuedAt();
+                }
+
+                // Add auto EXP if enabled
+                if (jwtSettings.autoExp) {
+                    const expString = getExpirationString(jwtSettings.expDuration, jwtSettings.expUnit);
+                    jwtBuilder = jwtBuilder.setExpirationTime(expString);
+                }
+
+                // Sign the JWT
+                const jwt = await jwtBuilder.sign(key);
+
+                // Replace content with signed JWT
+                view.dispatch({
+                    changes: { from, to, insert: jwt }
+                });
+
+                updateStatus(`JWT signed successfully with ${jwtSettings.algorithm}`);
+                return true;
+            } catch (e) {
+                updateStatus(`Failed to sign JWT: ${e.message}`);
+                return false;
+            }
+        }
+
+        async function verifyJWT() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No JWT to verify');
+                return false;
+            }
+
+            try {
+                // Get the verification key (public key for asymmetric, secret for symmetric)
+                const key = await getPublicKeyForAlgorithm();
+
+                // Verify the JWT
+                const { payload, protectedHeader } = await jose.jwtVerify(text, key);
+
+                // Format the payload as JSON
+                const formattedPayload = JSON.stringify(payload, null, 2);
+
+                // Replace content with decoded payload
+                view.dispatch({
+                    changes: { from, to, insert: formattedPayload }
+                });
+
+                updateStatus(`JWT verified successfully with ${protectedHeader.alg}`);
+                return true;
+            } catch (e) {
+                if (e.code === 'ERR_JWT_EXPIRED') {
+                    updateStatus('JWT verification failed: Token has expired');
+                } else if (e.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
+                    updateStatus('JWT verification failed: Invalid signature');
+                } else {
+                    updateStatus(`JWT verification failed: ${e.message}`);
+                }
+                return false;
+            }
+        }
+
+        // ===== JWE Operations =====
+        async function encryptJWE() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No content to encrypt');
+                return false;
+            }
+
+            try {
+                // Parse the content as JSON for the payload
+                let payload;
+                try {
+                    payload = JSON.parse(text);
+                } catch (e) {
+                    updateStatus('Content must be valid JSON for JWE payload');
+                    return false;
+                }
+
+                // For JWE, we use a symmetric key (32 chars for 256-bit encryption)
+                const secretKey = jwtSettings.secretKey;
+
+                if (!secretKey || secretKey.length < 32) {
+                    updateStatus('JWE requires a secret key of at least 32 characters. Please set it in settings.');
+                    return false;
+                }
+
+                // Convert string to Uint8Array
+                const key = new TextEncoder().encode(secretKey);
+
+                // Create JWE builder
+                let jweBuilder = new jose.EncryptJWT(payload)
+                    .setProtectedHeader({
+                        alg: 'dir',        // Direct key agreement
+                        enc: 'A256GCM'     // AES-256 GCM encryption
+                    });
+
+                // Add auto IAT if enabled
+                if (jwtSettings.autoIat) {
+                    jweBuilder = jweBuilder.setIssuedAt();
+                }
+
+                // Add auto EXP if enabled
+                if (jwtSettings.autoExp) {
+                    const expString = getExpirationString(jwtSettings.expDuration, jwtSettings.expUnit);
+                    jweBuilder = jweBuilder.setExpirationTime(expString);
+                }
+
+                // Encrypt the JWE
+                const jwe = await jweBuilder.encrypt(key);
+
+                // Replace content with encrypted JWE
+                view.dispatch({
+                    changes: { from, to, insert: jwe }
+                });
+
+                updateStatus('JWE encrypted successfully');
+                return true;
+            } catch (e) {
+                updateStatus(`Failed to encrypt JWE: ${e.message}`);
+                return false;
+            }
+        }
+
+        async function decryptJWE() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No JWE to decrypt');
+                return false;
+            }
+
+            try {
+                // Get the decryption key
+                const secretKey = jwtSettings.secretKey;
+
+                if (!secretKey || secretKey.length < 32) {
+                    updateStatus('JWE requires a secret key of at least 32 characters. Please set it in settings.');
+                    return false;
+                }
+
+                // Convert string to Uint8Array
+                const key = new TextEncoder().encode(secretKey);
+
+                // Decrypt the JWE
+                const { payload, protectedHeader } = await jose.jwtDecrypt(text, key);
+
+                // Format the payload as JSON
+                const formattedPayload = JSON.stringify(payload, null, 2);
+
+                // Replace content with decrypted payload
+                view.dispatch({
+                    changes: { from, to, insert: formattedPayload }
+                });
+
+                updateStatus('JWE decrypted successfully');
+                return true;
+            } catch (e) {
+                if (e.code === 'ERR_JWT_EXPIRED') {
+                    updateStatus('JWE decryption failed: Token has expired');
+                } else if (e.code === 'ERR_JWE_DECRYPTION_FAILED') {
+                    updateStatus('JWE decryption failed: Invalid key or corrupted token');
+                } else {
+                    updateStatus(`JWE decryption failed: ${e.message}`);
+                }
+                return false;
+            }
+        }
+
+        // String case conversion utilities
+        function toPascalCase(str) {
+            return str
+                .replace(/[_\s-]+(.)?/g, (_, c) => c ? c.toUpperCase() : '')
+                .replace(/^(.)/, c => c.toUpperCase());
+        }
+
+        function toCamelCase(str) {
+            return str
+                .replace(/[_\s-]+(.)?/g, (_, c) => c ? c.toUpperCase() : '')
+                .replace(/^(.)/, c => c.toLowerCase());
+        }
+
+        function toSnakeCase(str) {
+            return str
+                .replace(/([A-Z])/g, '_$1')
+                .replace(/[_\s-]+/g, '_')
+                .replace(/^_/, '')
+                .toLowerCase();
+        }
+
+        function toUpperCase(str) {
+            return str.toUpperCase();
+        }
+
+        function toLowerCase(str) {
+            return str.toLowerCase();
+        }
+
+        // Main function to apply text transformations
+        function transformText(transformFn, transformName) {
+            if (!view) return false;
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let from, to, text;
+
+            if (hasSelection) {
+                // Transform selected text
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to);
+            } else {
+                // Transform whole document
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString();
+            }
+
+            if (!text) {
+                updateStatus('No text to transform');
+                return false;
+            }
+
+            // Apply transformation
+            const transformed = transformFn(text);
+
+            // Replace text
+            view.dispatch({
+                changes: { from, to, insert: transformed }
+            });
+
+            updateStatus(`Converted to ${transformName}`);
+            return true;
+        }
+
+        // String escape/unescape utilities
+        function escapeJavaScript(str) {
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/'/g, "\\'")
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t')
+                .replace(/\f/g, '\\f');
+        }
+
+        function unescapeJavaScript(str) {
+            return str
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\f/g, '\f')
+                .replace(/\\'/g, "'")
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\');
+        }
+
+        function encodeURL(str) {
+            return encodeURIComponent(str);
+        }
+
+        function decodeURL(str) {
+            try {
+                return decodeURIComponent(str);
+            } catch (e) {
+                updateStatus('Invalid URL encoding');
+                return str;
+            }
+        }
+
+        function encodeFullURL(str) {
+            return encodeURI(str);
+        }
+
+        function decodeFullURL(str) {
+            try {
+                return decodeURI(str);
+            } catch (e) {
+                updateStatus('Invalid URL encoding');
+                return str;
+            }
+        }
+
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;');
+        }
+
+        function unescapeHTML(str) {
+            return str
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#x27;/g, "'")
+                .replace(/&#39;/g, "'");
+        }
+
+        // Base64 encode/decode utilities
+        function encodeBase64(str) {
+            // Handle UTF-8 characters by using TextEncoder
+            const bytes = new TextEncoder().encode(str);
+            let binary = '';
+            bytes.forEach(byte => binary += String.fromCharCode(byte));
+            return btoa(binary);
+        }
+
+        function decodeBase64Preview() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No text to decode');
+                return false;
+            }
+
+            try {
+                let dataUrl;
+
+                // Check if it's already a data URL
+                if (text.startsWith('data:')) {
+                    dataUrl = text;
+                } else {
+                    // Try to detect MIME type from base64 content signature
+                    // First, validate it's valid base64
+                    const base64Data = text.replace(/\s/g, ''); // Remove whitespace
+                    const decoded = atob(base64Data); // This will throw if invalid
+
+                    // Detect MIME type from file signature (magic numbers)
+                    let mimeType = 'text/plain';
+
+                    if (decoded.startsWith('\x89PNG')) {
+                        mimeType = 'image/png';
+                    } else if (decoded.startsWith('\xFF\xD8\xFF')) {
+                        mimeType = 'image/jpeg';
+                    } else if (decoded.startsWith('GIF87a') || decoded.startsWith('GIF89a')) {
+                        mimeType = 'image/gif';
+                    } else if (decoded.startsWith('%PDF')) {
+                        mimeType = 'application/pdf';
+                    } else if (decoded.startsWith('<svg') || decoded.startsWith('<?xml')) {
+                        mimeType = 'image/svg+xml';
+                    } else if (decoded.startsWith('RIFF') && decoded.includes('WEBP')) {
+                        mimeType = 'image/webp';
+                    }
+
+                    dataUrl = `data:${mimeType};base64,${base64Data}`;
+                }
+
+                // Convert data URL to Blob for better browser compatibility
+                // Parse the data URL to extract MIME type and base64 data
+                const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+                if (!matches) {
+                    updateStatus('Invalid data URL format');
+                    return false;
+                }
+
+                const mimeType = matches[1];
+                const base64Data = matches[2];
+
+                // Decode base64 to binary string
+                const binaryString = atob(base64Data);
+
+                // Convert binary string to Uint8Array
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Check if content is image or PDF (binary content)
+                const isBinaryContent = mimeType.startsWith('image/') || mimeType === 'application/pdf';
+
+                if (isBinaryContent) {
+                    // For images and PDFs, open in new tab
+                    const blob = new Blob([bytes], { type: mimeType });
+                    const blobUrl = URL.createObjectURL(blob);
+
+                    const newWindow = window.open(blobUrl, '_blank');
+
+                    if (newWindow) {
+                        updateStatus('Preview opened in new tab');
+                        return true;
+                    } else {
+                        updateStatus('Failed to open new tab (popup blocked?)');
+                        return false;
+                    }
+                } else {
+                    // For text-based content, decode and replace in editor
+                    const decodedText = new TextDecoder('utf-8').decode(bytes);
+
+                    // Replace the base64 text with decoded text
+                    view.dispatch({
+                        changes: { from, to, insert: decodedText }
+                    });
+
+                    updateStatus('Decoded text');
+                    return true;
+                }
+
+            } catch (e) {
+                updateStatus('Invalid Base64 data');
+                return false;
+            }
+        }
+
+        // QR Code utilities
+        async function generateQRCode() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text;
+
+            if (hasSelection) {
+                const from = Math.min(selection.anchor, selection.head);
+                const to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to);
+            } else {
+                text = state.doc.toString();
+            }
+
+            if (!text) {
+                updateStatus('No text to encode as QR code');
+                return false;
+            }
+
+            try {
+                // Generate QR code as data URL (PNG)
+                const dataUrl = await QRCode.toDataURL(text, {
+                    errorCorrectionLevel: 'M',
+                    type: 'image/png',
+                    width: 512,
+                    margin: 2
+                });
+
+                // Convert data URL to Blob for better browser compatibility
+                const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+                if (!matches) {
+                    updateStatus('Failed to generate QR code');
+                    return false;
+                }
+
+                const mimeType = matches[1];
+                const base64Data = matches[2];
+
+                // Decode base64 to binary string
+                const binaryString = atob(base64Data);
+
+                // Convert binary string to Uint8Array
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Create Blob and object URL
+                const blob = new Blob([bytes], { type: mimeType });
+                const blobUrl = URL.createObjectURL(blob);
+
+                // Open in new tab
+                const newWindow = window.open(blobUrl, '_blank');
+
+                if (newWindow) {
+                    updateStatus('QR code generated and opened in new tab');
+                    return true;
+                } else {
+                    updateStatus('Failed to open new tab (popup blocked?)');
+                    return false;
+                }
+
+            } catch (e) {
+                updateStatus('Failed to generate QR code: ' + e.message);
+                return false;
+            }
+        }
+
+        async function readQRCode() {
+            if (!view) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let text, from, to;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to).trim();
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString().trim();
+            }
+
+            if (!text) {
+                updateStatus('No base64 data to read');
+                return false;
+            }
+
+            try {
+                let dataUrl;
+
+                // Check if it's already a data URL
+                if (text.startsWith('data:')) {
+                    dataUrl = text;
+                } else {
+                    // Assume it's raw base64 and try common image types
+                    const base64Data = text.replace(/\s/g, '');
+                    const decoded = atob(base64Data);
+
+                    // Detect MIME type from file signature
+                    let mimeType = 'image/png'; // Default to PNG for QR codes
+
+                    if (decoded.startsWith('\x89PNG')) {
+                        mimeType = 'image/png';
+                    } else if (decoded.startsWith('\xFF\xD8\xFF')) {
+                        mimeType = 'image/jpeg';
+                    } else if (decoded.startsWith('GIF87a') || decoded.startsWith('GIF89a')) {
+                        mimeType = 'image/gif';
+                    }
+
+                    dataUrl = `data:${mimeType};base64,${base64Data}`;
+                }
+
+                // Load image
+                const img = new Image();
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error('Failed to load image'));
+                    img.src = dataUrl;
+                });
+
+                // Create canvas and draw image
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+                // Decode QR code
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code) {
+                    // Replace the base64 text with decoded text
+                    view.dispatch({
+                        changes: { from, to, insert: code.data }
+                    });
+
+                    updateStatus('QR code decoded successfully');
+                    return true;
+                } else {
+                    updateStatus('No QR code detected in image');
+                    return false;
+                }
+
+            } catch (e) {
+                updateStatus('Failed to read QR code: ' + e.message);
+                return false;
+            }
+        }
+
+        // Minify/Format utilities
+        function formatJSON(str) {
+            try {
+                const parsed = JSON.parse(str);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                throw new Error('Invalid JSON syntax');
+            }
+        }
+
+        function minifyJSON(str) {
+            try {
+                const parsed = JSON.parse(str);
+                return JSON.stringify(parsed);
+            } catch (e) {
+                throw new Error('Invalid JSON syntax');
+            }
+        }
+
+        function formatCSS(str) {
+            return str
+                // Remove existing extra whitespace
+                .replace(/\s+/g, ' ')
+                .trim()
+                // Add newline after opening brace
+                .replace(/\{/g, ' {\n  ')
+                // Add newline after each property
+                .replace(/;/g, ';\n  ')
+                // Add newline before closing brace
+                .replace(/\}/g, '\n}\n')
+                // Fix multiple newlines
+                .replace(/\n\s*\n/g, '\n')
+                // Remove space before closing brace
+                .replace(/\s+\}/g, '\n}')
+                .trim();
+        }
+
+        function minifyCSS(str) {
+            return str
+                // Remove comments
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Remove extra whitespace
+                .replace(/\s+/g, ' ')
+                // Remove space around special characters
+                .replace(/\s*([{}:;,])\s*/g, '$1')
+                .trim();
+        }
+
+        function formatHTML(str) {
+            let formatted = '';
+            let indent = 0;
+            const indentStr = '  ';
+
+            // Split by tags
+            const tags = str.split(/(\x3C[^>]+>)/g).filter(s => s.trim());
+
+            for (let tag of tags) {
+                if (tag.startsWith('\x3C/')) {
+                    // Closing tag - decrease indent before adding
+                    indent = Math.max(0, indent - 1);
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                } else if (tag.startsWith('\x3C') && !tag.endsWith('/>') && !tag.match(/\x3C(br|hr|img|input|meta|link)/i)) {
+                    // Opening tag - add then increase indent
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                    indent++;
+                } else if (tag.startsWith('\x3C')) {
+                    // Self-closing or void tag
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                } else {
+                    // Text content
+                    const trimmed = tag.trim();
+                    if (trimmed) {
+                        formatted += indentStr.repeat(indent) + trimmed + '\n';
+                    }
+                }
+            }
+
+            return formatted.trim();
+        }
+
+        function minifyHTML(str) {
+            return str
+                // Remove comments
+                .replace(/\x3C!--[\s\S]*?-->/g, '')
+                // Remove whitespace between tags
+                .replace(/>\s+\x3C/g, '>\x3C')
+                // Remove extra whitespace
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function formatXML(str) {
+            let formatted = '';
+            let indent = 0;
+            const indentStr = '  ';
+
+            // Split by tags
+            const tags = str.split(/(\x3C[^>]+>)/g).filter(s => s.trim());
+
+            for (let tag of tags) {
+                if (tag.startsWith('\x3C/')) {
+                    // Closing tag
+                    indent = Math.max(0, indent - 1);
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                } else if (tag.startsWith('\x3C?')) {
+                    // XML declaration
+                    formatted += tag + '\n';
+                } else if (tag.startsWith('\x3C') && !tag.endsWith('/>')) {
+                    // Opening tag
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                    indent++;
+                } else if (tag.startsWith('\x3C')) {
+                    // Self-closing tag
+                    formatted += indentStr.repeat(indent) + tag + '\n';
+                } else {
+                    // Text content
+                    const trimmed = tag.trim();
+                    if (trimmed) {
+                        formatted += indentStr.repeat(indent) + trimmed + '\n';
+                    }
+                }
+            }
+
+            return formatted.trim();
+        }
+
+        function minifyXML(str) {
+            return str
+                // Remove comments
+                .replace(/\x3C!--[\s\S]*?-->/g, '')
+                // Remove whitespace between tags
+                .replace(/>\s+\x3C/g, '>\x3C')
+                // Remove extra whitespace
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function formatCode() {
+            if (!view || !currentFileId) {
+                updateStatus('No file is currently open');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let from, to, text;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to);
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString();
+            }
+
+            // Detect file type
+            return getItem(currentFileId).then(file => {
+                if (!file) return false;
+
+                const ext = file.name.split('.').pop().toLowerCase();
+                let formatted;
+
+                try {
+                    if (ext === 'json') {
+                        formatted = formatJSON(text);
+                    } else if (ext === 'css') {
+                        formatted = formatCSS(text);
+                    } else if (ext === 'html' || ext === 'htm') {
+                        formatted = formatHTML(text);
+                    } else if (ext === 'xml') {
+                        formatted = formatXML(text);
+                    } else {
+                        updateStatus('Format only supports JSON, CSS, HTML, and XML files');
+                        return false;
+                    }
+
+                    view.dispatch({
+                        changes: { from, to, insert: formatted }
+                    });
+
+                    updateStatus(`Formatted ${ext.toUpperCase()}`);
+                    return true;
+                } catch (e) {
+                    updateStatus(e.message || 'Format failed');
+                    return false;
+                }
+            });
+        }
+
+        function minifyCode() {
+            if (!view || !currentFileId) {
+                updateStatus('No file is currently open');
+                return false;
+            }
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+
+            let from, to, text;
+
+            if (hasSelection) {
+                from = Math.min(selection.anchor, selection.head);
+                to = Math.max(selection.anchor, selection.head);
+                text = state.doc.sliceString(from, to);
+            } else {
+                from = 0;
+                to = state.doc.length;
+                text = state.doc.toString();
+            }
+
+            // Detect file type
+            return getItem(currentFileId).then(file => {
+                if (!file) return false;
+
+                const ext = file.name.split('.').pop().toLowerCase();
+                let minified;
+
+                try {
+                    if (ext === 'json') {
+                        minified = minifyJSON(text);
+                    } else if (ext === 'css') {
+                        minified = minifyCSS(text);
+                    } else if (ext === 'html' || ext === 'htm') {
+                        minified = minifyHTML(text);
+                    } else if (ext === 'xml') {
+                        minified = minifyXML(text);
+                    } else {
+                        updateStatus('Minify only supports JSON, CSS, HTML, and XML files');
+                        return false;
+                    }
+
+                    view.dispatch({
+                        changes: { from, to, insert: minified }
+                    });
+
+                    updateStatus(`Minified ${ext.toUpperCase()}`);
+                    return true;
+                } catch (e) {
+                    updateStatus(e.message || 'Minify failed');
+                    return false;
+                }
+            });
+        }
+
+        function detectLanguageFromFilename(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            return extensionMap[extension] || 'plaintext';
+        }
+
+        function getFileIcon(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const iconMap = {
+                'js': '🟨',
+                'jsx': '🟨',
+                'ts': '🔷',
+                'tsx': '🔷',
+                'html': '🌐',
+                'htm': '🌐',
+                'css': '🎨',
+                'json': '{ }',
+                'xml': '📑',
+                'md': '📝',
+                'markdown': '📝',
+                'sql': '🗄️',
+                'txt': '📄'
+            };
+            return iconMap[extension] || '📄';
+        }
+
+        // ===== Cursor Position Management =====
+        function getCurrentCursorPosition() {
+            if (!view) return null;
+            const pos = view.state.selection.main.head;
+            return pos;
+        }
+
+        async function saveCursorPosition(fileId) {
+            if (!fileId || !view) return;
+            const cursorPosition = getCurrentCursorPosition();
+            await updateFile(fileId, { cursorPosition });
+        }
+
+        function restoreCursorPosition(position) {
+            if (!view || position === null || position === undefined) return;
+
+            // Ensure position is within document bounds
+            const docLength = view.state.doc.length;
+            const safePosition = Math.min(position, docLength);
+
+            view.dispatch({
+                selection: { anchor: safePosition, head: safePosition },
+                scrollIntoView: true
+            });
+        }
+
+        // ===== Balance Inward/Outward Commands =====
+
+        // Helper function to find matching bracket
+        function findMatchingBracket(doc, startPos, direction) {
+            const openBrackets = '([{';
+            const closeBrackets = ')]}';
+            const bracketPairs = { '(': ')', '[': ']', '{': '}', ')': '(', ']': '[', '}': '{' };
+
+            // Get character at start position
+            const startChar = doc.sliceString(startPos, startPos + 1);
+            if (!bracketPairs[startChar]) return -1;
+
+            const isOpen = openBrackets.includes(startChar);
+            const targetChar = bracketPairs[startChar];
+
+            let depth = 1;
+            let pos = startPos + direction;
+
+            while (pos >= 0 && pos < doc.length) {
+                const char = doc.sliceString(pos, pos + 1);
+
+                if (char === startChar) {
+                    depth++;
+                } else if (char === targetChar) {
+                    depth--;
+                    if (depth === 0) {
+                        return pos;
+                    }
+                }
+
+                pos += direction;
+            }
+
+            return -1;
+        }
+
+        // Helper function to find matching quote
+        function findMatchingQuote(doc, startPos) {
+            const quoteChar = doc.sliceString(startPos, startPos + 1);
+            if (quoteChar !== '"' && quoteChar !== "'") return -1;
+
+            // Count how many unescaped quotes of this type appear before startPos
+            let quoteCount = 0;
+            let pos = 0;
+
+            while (pos < startPos) {
+                const char = doc.sliceString(pos, pos + 1);
+                const prevChar = pos > 0 ? doc.sliceString(pos - 1, pos) : '';
+
+                // Count unescaped quotes
+                if (char === quoteChar && prevChar !== '\\') {
+                    quoteCount++;
+                }
+                pos++;
+            }
+
+            // If even number of quotes before us, we're an opening quote (search forward)
+            // If odd number, we're a closing quote (search backward)
+            const isOpening = quoteCount % 2 === 0;
+            const direction = isOpening ? 1 : -1;
+            pos = startPos + direction;
+
+            while (pos >= 0 && pos < doc.length) {
+                const char = doc.sliceString(pos, pos + 1);
+                const prevChar = pos > 0 ? doc.sliceString(pos - 1, pos) : '';
+
+                // Found matching unescaped quote
+                if (char === quoteChar && prevChar !== '\\') {
+                    return pos;
+                }
+
+                pos += direction;
+            }
+
+            return -1;
+        }
+
+        // Find the innermost delimiter pair (brackets or quotes) surrounding a position
+        function findInnerDelimiters(doc, pos) {
+            let bestResult = null;
+            let smallestRange = Infinity;
+
+            // Search backwards for opening brackets and quotes
+            for (let searchPos = pos - 1; searchPos >= 0; searchPos--) {
+                const char = doc.sliceString(searchPos, searchPos + 1);
+
+                let closePos = -1;
+
+                if ('([{'.includes(char)) {
+                    // Found opening bracket, find its match
+                    closePos = findMatchingBracket(doc, searchPos, 1);
+                } else if ('"\''.includes(char)) {
+                    // Found quote, find its match
+                    closePos = findMatchingQuote(doc, searchPos);
+                }
+
+                if (closePos > pos) {
+                    // This delimiter pair contains our position
+                    const range = closePos - searchPos;
+                    if (range < smallestRange) {
+                        smallestRange = range;
+                        bestResult = { open: searchPos, close: closePos };
+                    }
+                }
+            }
+
+            return bestResult;
+        }
+
+        function balanceInward() {
+            if (!view) return false;
+
+            const state = view.state;
+            const pos = state.selection.main.head;
+            const doc = state.doc;
+
+            // Find innermost delimiter pair containing cursor
+            const delimiters = findInnerDelimiters(doc, pos);
+
+            if (delimiters) {
+                // Select content inside delimiters (excluding the delimiter characters)
+                const from = delimiters.open + 1;
+                const to = delimiters.close;
+
+                if (from < to) {
+                    view.dispatch({
+                        selection: { anchor: from, head: to }
+                    });
+                    view.focus();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function balanceOutward() {
+            if (!view) return false;
+
+            const state = view.state;
+            const selection = state.selection.main;
+            const doc = state.doc;
+
+            // Get current selection range
+            const currentFrom = Math.min(selection.anchor, selection.head);
+            const currentTo = Math.max(selection.anchor, selection.head);
+
+            // Search for delimiter pair that contains current selection but is larger
+            let bestResult = null;
+            let smallestRange = Infinity;
+
+            for (let searchPos = currentFrom - 1; searchPos >= 0; searchPos--) {
+                const char = doc.sliceString(searchPos, searchPos + 1);
+
+                let closePos = -1;
+
+                if ('([{'.includes(char)) {
+                    closePos = findMatchingBracket(doc, searchPos, 1);
+                } else if ('"\''.includes(char)) {
+                    closePos = findMatchingQuote(doc, searchPos);
+                }
+
+                if (closePos > currentTo) {
+                    // This delimiter pair contains our current selection
+                    const range = closePos - searchPos;
+                    if (range < smallestRange) {
+                        smallestRange = range;
+                        bestResult = { open: searchPos, close: closePos };
+                    }
+                }
+            }
+
+            if (bestResult) {
+                // Select the outer delimiter pair (including delimiters)
+                view.dispatch({
+                    selection: { anchor: bestResult.open, head: bestResult.close + 1 }
+                });
+                view.focus();
+                return true;
+            }
+
+            return false;
+        }
+
+        // ===== Context Menu =====
+        function createContextMenu(x, y, options) {
+            // Remove any existing context menu
+            const existing = document.querySelector('.custom-context-menu');
+            if (existing) existing.remove();
+
+            const menu = document.createElement('div');
+            menu.className = 'custom-context-menu';
+            menu.style.position = 'fixed';
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.style.background = '#252526';
+            menu.style.border = '1px solid #3e3e42';
+            menu.style.borderRadius = '4px';
+            menu.style.padding = '4px 0';
+            menu.style.zIndex = '10000';
+            menu.style.minWidth = '180px';
+            menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+
+            options.forEach(option => {
+                const item = document.createElement('div');
+                item.className = 'context-menu-item';
+                item.textContent = option.label;
+                item.style.padding = '6px 12px';
+                item.style.cursor = option.disabled ? 'default' : 'pointer';
+                item.style.color = option.disabled ? '#666' : '#cccccc';
+                item.style.fontSize = '13px';
+
+                if (!option.disabled) {
+                    item.addEventListener('mouseenter', () => {
+                        item.style.background = '#2a2d2e';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.background = 'transparent';
+                    });
+                    item.addEventListener('click', () => {
+                        option.action();
+                        menu.remove();
+                    });
+                }
+
+                menu.appendChild(item);
+            });
+
+            document.body.appendChild(menu);
+
+            // Close menu on click outside
+            const closeHandler = (e) => {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            setTimeout(() => {
+                document.addEventListener('click', closeHandler);
+            }, 0);
+
+            // Adjust position if menu goes off screen
+            const rect = menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+            }
+            if (rect.bottom > window.innerHeight) {
+                menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+            }
+        }
+
+        function showEditorContextMenu(event) {
+            event.preventDefault();
+
+            const options = [
+                {
+                    label: 'Balance Inward',
+                    disabled: !view,
+                    action: () => {
+                        const success = balanceInward();
+                        if (success) {
+                            updateStatus('Selected inner content');
+                        } else {
+                            updateStatus('No inner selection found');
+                        }
+                    }
+                },
+                {
+                    label: 'Balance Outward',
+                    disabled: !view,
+                    action: () => {
+                        const success = balanceOutward();
+                        if (success) {
+                            updateStatus('Expanded selection outward');
+                        } else {
+                            updateStatus('No outer selection found');
+                        }
+                    }
+                },
+                {
+                    label: 'Copy JSON Subtree',
+                    disabled: !view || !currentFileId,
+                    action: async () => {
+                        await copyJsonSubtree();
+                    }
+                }
+            ];
+
+            createContextMenu(event.clientX, event.clientY, options);
+        }
+
+        // ===== File Operations =====
+        async function openFile(id) {
+            // Save cursor position of currently open file before switching
+            if (currentFileId && currentFileId !== id) {
+                await saveCursorPosition(currentFileId);
+            }
+
+            const file = await getItem(id);
+            if (!file || file.type !== 'file') return;
+
+            const language = detectLanguageFromFilename(file.name);
+            createEditor(file.content, language, currentTheme);
+
+            currentFileId = id;
+
+            // Restore cursor position if it was saved
+            if (file.cursorPosition !== undefined) {
+                restoreCursorPosition(file.cursorPosition);
+            }
+
+            // Focus the editor
+            if (view) {
+                view.focus();
+            }
+
+            renderFileTree();
+            updateStatus(`Opened ${file.name}`);
+        }
+
+        async function saveCurrentFile() {
+            // If no file is active, create a new Untitled file
+            if (!currentFileId) {
+                const content = view ? view.state.doc.toString() : '';
+                const name = await getNextUntitledName();
+                const id = await createFile(name, content);
+                currentFileId = id;
+                renderFileTree();
+                // Now continue to show rename modal since it's Untitled
+            }
+
+            const file = await getItem(currentFileId);
+            if (!file) return;
+
+            // If file is Untitled, show rename modal
+            if (file.name.match(/^Untitled(\s\(\d+\))?$/)) {
+                showRenameModal('rename-file', file.name, async (newName) => {
+                    await renameItem(currentFileId, newName);
+                    const content = view.state.doc.toString();
+                    await updateFile(currentFileId, { content });
+
+                    // Update language based on new name
+                    const language = detectLanguageFromFilename(newName);
+                    updateLanguage(language);
+
+                    renderFileTree();
+                    updateStatus(`Saved ${newName}`);
+                    if (view) {
+                        view.focus();
+                    }
+                });
+                return;
+            }
+
+            const content = view.state.doc.toString();
+            await updateFile(currentFileId, { content });
+            updateStatus(`Saved ${file.name}`);
+        }
+
+        async function createNewFile() {
+            const name = await getNextUntitledName();
+            const id = await createFile(name, '');
+            await openFile(id);
+        }
+
+        // ===== UI Rendering =====
+        async function handleRename(item) {
+            showRenameModal('rename', item.name, async (newName) => {
+                await renameItem(item.id, newName);
+                if (item.id === currentFileId) {
+                    const language = detectLanguageFromFilename(newName);
+                    updateLanguage(language);
+                }
+                renderFileTree();
+                updateStatus(`Renamed to ${newName}`);
+            });
+        }
+
+        function showInlineConfirm(actionsContainer, deleteBtn, item) {
+            // Hide delete button temporarily
+            deleteBtn.style.display = 'none';
+
+            // Create confirm button
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = '✓';
+            confirmBtn.title = 'Confirm Delete';
+            confirmBtn.className = 'confirm';
+            confirmBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await handleDelete(item);
+            });
+
+            // Create cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '✕';
+            cancelBtn.title = 'Cancel';
+            cancelBtn.className = 'cancel';
+            cancelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                restoreDeleteButton();
+            });
+
+            // Add buttons
+            actionsContainer.appendChild(cancelBtn);
+            actionsContainer.appendChild(confirmBtn);
+
+            // Auto-focus to make it clear something changed
+            confirmBtn.focus();
+
+            // Helper to restore original state
+            const restoreDeleteButton = () => {
+                confirmBtn.remove();
+                cancelBtn.remove();
+                deleteBtn.style.display = '';
+            };
+
+            // Click outside to cancel
+            const clickOutsideHandler = (e) => {
+                if (!actionsContainer.contains(e.target)) {
+                    restoreDeleteButton();
+                    document.removeEventListener('click', clickOutsideHandler);
+                }
+            };
+            setTimeout(() => {
+                document.addEventListener('click', clickOutsideHandler);
+            }, 0);
+        }
+
+        async function handleDelete(item) {
+            const wasCurrentFile = item.id === currentFileId;
+            await deleteItem(item.id);
+
+            if (wasCurrentFile) {
+                currentFileId = null;
+                createEditor('', 'javascript', currentTheme);
+            }
+
+            renderFileTree();
+            updateStatus(`Deleted ${item.name}`);
+        }
+
+        async function handleDrop(draggedId, targetFolderId, targetFolderName) {
+            if (!draggedId) return false;
+
+            // Don't move if dropping on itself
+            if (draggedId === targetFolderId) return false;
+
+            const success = await moveItem(draggedId, targetFolderId);
+            if (success) {
+                await renderFileTree();
+                const draggedItem = await getItem(draggedId);
+                const destination = targetFolderName || 'root';
+                updateStatus(`Moved ${draggedItem.name} to ${destination}`);
+                return true;
+            } else {
+                updateStatus('Cannot move item here');
+                return false;
+            }
+        }
+
+        async function renderFileTree() {
+            const fileTree = document.getElementById('file-tree');
+            // Clear all tree items - this destroys old DOM elements and their event listeners
+            // Event listeners on destroyed elements are automatically garbage collected, no removeEventListener needed
+            fileTree.innerHTML = '';
+
+            const items = await getAllItems();
+            const rootItems = items.filter(item => !item.parentId).sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            const renderItem = (item, indent = 0) => {
+                const div = document.createElement('div');
+                div.className = `tree-item indent-${indent}`;
+                if (item.type === 'folder') div.classList.add('folder');
+                if (item.id === currentFileId) div.classList.add('active');
+
+                const icon = document.createElement('span');
+                icon.className = 'icon';
+                icon.textContent = item.type === 'folder' ? '📁' : getFileIcon(item.name);
+
+                const name = document.createElement('span');
+                name.className = 'name';
+                name.textContent = item.name;
+                name.title = item.name; // Show full name on hover
+
+                // Create action buttons
+                const actions = document.createElement('div');
+                actions.className = 'actions';
+
+                const renameBtn = document.createElement('button');
+                renameBtn.textContent = '✏️';
+                renameBtn.title = 'Rename';
+                renameBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleRename(item);
+                });
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '🗑️';
+                deleteBtn.title = 'Delete';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showInlineConfirm(actions, deleteBtn, item);
+                });
+
+                actions.appendChild(renameBtn);
+                actions.appendChild(deleteBtn);
+
+                div.appendChild(icon);
+                div.appendChild(name);
+                div.appendChild(actions);
+
+                // Make item draggable
+                div.setAttribute('draggable', 'true');
+                div.setAttribute('data-item-id', item.id);
+
+                // Drag start - store the dragged item ID
+                div.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', item.id);
+                    div.classList.add('dragging');
+                });
+
+                // Drag end - cleanup
+                div.addEventListener('dragend', (e) => {
+                    div.classList.remove('dragging');
+                    document.querySelectorAll('.drag-over').forEach(el => {
+                        el.classList.remove('drag-over');
+                    });
+                });
+
+                // Only folders can be drop targets
+                if (item.type === 'folder') {
+                    div.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'move';
+                    });
+
+                    div.addEventListener('dragenter', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const draggedId = parseInt(e.dataTransfer.getData('text/plain') || '-1');
+                        // Don't highlight if dragging the folder itself
+                        if (draggedId !== item.id) {
+                            div.classList.add('drag-over');
+                        }
+                    });
+
+                    div.addEventListener('dragleave', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Only remove highlight if we're actually leaving this element
+                        if (e.target === div && !div.contains(e.relatedTarget)) {
+                            div.classList.remove('drag-over');
+                        }
+                    });
+
+                    div.addEventListener('drop', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        div.classList.remove('drag-over');
+
+                        const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+                        await handleDrop(draggedId, item.id, item.name);
+                    });
+                }
+
+                if (item.type === 'file') {
+                    name.addEventListener('click', () => openFile(item.id));
+                }
+
+                fileTree.appendChild(div);
+
+                if (item.type === 'folder') {
+                    const children = items.filter(i => i.parentId === item.id).sort((a, b) => {
+                        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    children.forEach(child => renderItem(child, indent + 1));
+                }
+            };
+
+            rootItems.forEach(item => renderItem(item));
+        }
+
+        // Initialize root drop zone (called once during initialization)
+        function initFileTreeDropZone() {
+            const fileTree = document.getElementById('file-tree');
+
+            // Add drop zone for root level (to move items out of folders)
+            fileTree.addEventListener('dragover', (e) => {
+                // Only handle drops on the file tree background, not on items
+                if (e.target === fileTree) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                }
+            });
+
+            fileTree.addEventListener('drop', async (e) => {
+                // Only handle drops on the file tree background
+                if (e.target === fileTree) {
+                    e.preventDefault();
+                    const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+                    await handleDrop(draggedId, null, 'root');
+                }
+            });
+        }
+
+        // ===== Modal Functions =====
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function showRenameModal(mode, currentName, onConfirm) {
+            const modal = document.getElementById('rename-modal');
+            const input = document.getElementById('modal-input');
+            const title = document.getElementById('modal-title');
+
+            title.textContent = mode === 'new-file' ? 'New File' :
+                mode === 'new-folder' ? 'New Folder' : 'Rename';
+            input.value = currentName;
+
+            showModal('rename-modal');
+            input.focus();
+            input.select();
+
+            const confirm = async () => {
+                const newName = input.value.trim();
+                if (newName) {
+                    await onConfirm(newName);
+                }
+                hideModal('rename-modal');
+                cleanup();
+            };
+
+            const cancel = () => {
+                hideModal('rename-modal');
+                cleanup();
+            };
+
+            const cleanup = () => {
+                document.getElementById('modal-confirm').removeEventListener('click', confirm);
+                document.getElementById('modal-cancel').removeEventListener('click', cancel);
+                input.removeEventListener('keydown', keyHandler);
+            };
+
+            const keyHandler = (e) => {
+                if (e.key === 'Enter') confirm();
+                if (e.key === 'Escape') cancel();
+            };
+
+            document.getElementById('modal-confirm').addEventListener('click', confirm);
+            document.getElementById('modal-cancel').addEventListener('click', cancel);
+            input.addEventListener('keydown', keyHandler);
+        }
+
+        // ===== Event Listeners =====
+        document.getElementById('toggle-sidebar-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+
+        document.getElementById('new-file-sidebar-btn').addEventListener('click', createNewFile);
+
+        document.getElementById('new-folder-btn').addEventListener('click', () => {
+            showRenameModal('new-folder', 'New Folder', async (name) => {
+                await createFolder(name);
+                renderFileTree();
+                updateStatus(`Created folder ${name}`);
+            });
+        });
+
+        // Helper function to check if a file is binary
+        function isBinaryFile(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const binaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'pdf', 'zip', 'tar', 'gz'];
+            return binaryExtensions.includes(ext);
+        }
+
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            if (isBinaryFile(file.name)) {
+                // Binary file - convert to base64
+                reader.onload = async (event) => {
+                    const dataUrl = event.target.result;
+
+                    // Extract base64 content from data URL
+                    // Data URL format: data:image/png;base64,iVBORw0KGgo...
+                    const matches = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+
+                    if (matches && matches[1]) {
+                        const base64Content = matches[1];
+                        const id = await createFile(file.name, base64Content);
+                        await openFile(id);
+                        updateStatus(`Imported binary file: ${file.name}`);
+                    } else {
+                        updateStatus('Failed to convert file to base64');
+                    }
+                };
+
+                reader.readAsDataURL(file);
+            } else {
+                // Text file - read as text
+                reader.onload = async (event) => {
+                    const content = event.target.result;
+                    const id = await createFile(file.name, content);
+                    await openFile(id);
+                    updateStatus(`Imported file: ${file.name}`);
+                };
+
+                reader.readAsText(file);
+            }
+        });
+
+        // Dropdown menu for case conversion
+        const convertCaseBtn = document.getElementById('convert-case-btn');
+        const convertCaseMenu = document.getElementById('convert-case-menu');
+
+        convertCaseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            convertCaseMenu.classList.toggle('show');
+        });
+
+        // Dropdown menu for escape/unescape
+        const escapeUnescapeBtn = document.getElementById('escape-unescape-btn');
+        const escapeUnescapeMenu = document.getElementById('escape-unescape-menu');
+
+        escapeUnescapeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            escapeUnescapeMenu.classList.toggle('show');
+        });
+
+
+        // Case conversion menu items
+        document.getElementById('convert-pascal').addEventListener('click', () => {
+            transformText(toPascalCase, 'PascalCase');
+            convertCaseMenu.classList.remove('show');
+        });
+
+        document.getElementById('convert-camel').addEventListener('click', () => {
+            transformText(toCamelCase, 'camelCase');
+            convertCaseMenu.classList.remove('show');
+        });
+
+        document.getElementById('convert-snake').addEventListener('click', () => {
+            transformText(toSnakeCase, 'snake_case');
+            convertCaseMenu.classList.remove('show');
+        });
+
+        document.getElementById('convert-upper').addEventListener('click', () => {
+            transformText(toUpperCase, 'UPPERCASE');
+            convertCaseMenu.classList.remove('show');
+        });
+
+        document.getElementById('convert-lower').addEventListener('click', () => {
+            transformText(toLowerCase, 'lowercase');
+            convertCaseMenu.classList.remove('show');
+        });
+
+        // Escape/Unescape menu items
+        document.getElementById('escape-js').addEventListener('click', () => {
+            transformText(escapeJavaScript, 'JavaScript/JSON (escaped)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('unescape-js').addEventListener('click', () => {
+            transformText(unescapeJavaScript, 'JavaScript/JSON (unescaped)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('encode-url').addEventListener('click', () => {
+            transformText(encodeURL, 'URL (encoded)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('decode-url').addEventListener('click', () => {
+            transformText(decodeURL, 'URL (decoded)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('encode-full-url').addEventListener('click', () => {
+            transformText(encodeFullURL, 'URL (full URI encoded)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('decode-full-url').addEventListener('click', () => {
+            transformText(decodeFullURL, 'URL (full URI decoded)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('escape-html').addEventListener('click', () => {
+            transformText(escapeHTML, 'HTML (escaped)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        document.getElementById('unescape-html').addEventListener('click', () => {
+            transformText(unescapeHTML, 'HTML (unescaped)');
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
+        // Dropdown menu for code formatting
+        const formatBtn = document.getElementById('format-btn');
+        const formatMenu = document.getElementById('format-menu');
+
+        formatBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            formatMenu.classList.toggle('show');
+        });
+
+        // format menu items
+        document.getElementById('format-code').addEventListener('click', async () => {
+            await formatCode();
+            formatMenu.classList.remove('show');
+        });
+
+        document.getElementById('minify-code').addEventListener('click', async () => {
+            await minifyCode();
+            formatMenu.classList.remove('show');
+        });
+
+        const base64Btn = document.getElementById('base64-btn');
+        const base64Menu = document.getElementById('base64-menu');
+
+        base64Btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            base64Menu.classList.toggle('show');
+        });
+
+        document.getElementById('encode-base64').addEventListener('click', () => {
+            transformText(encodeBase64, 'Base64');
+            base64Menu.classList.remove('show');
+        });
+
+        document.getElementById('decode-base64').addEventListener('click', () => {
+            decodeBase64Preview();
+            base64Menu.classList.remove('show');
+        });
+
+        // Dropdown menu for QR Code
+        const qrcodeBtn = document.getElementById('qrcode-btn');
+        const qrcodeMenu = document.getElementById('qrcode-menu');
+
+        qrcodeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            qrcodeMenu.classList.toggle('show');
+        });
+
+        document.getElementById('generate-qrcode').addEventListener('click', () => {
+            generateQRCode();
+            qrcodeMenu.classList.remove('show');
+        });
+
+        document.getElementById('read-qrcode').addEventListener('click', () => {
+            readQRCode();
+            qrcodeMenu.classList.remove('show');
+        });
+
+        // Dropdown menu for JWT
+        const jwtBtn = document.getElementById('jwt-btn');
+        const jwtMenu = document.getElementById('jwt-menu');
+
+        jwtBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            jwtMenu.classList.toggle('show');
+        });
+
+        document.getElementById('jwt-sign').addEventListener('click', () => {
+            signJWT();
+            jwtMenu.classList.remove('show');
+        });
+
+        document.getElementById('jwt-verify').addEventListener('click', () => {
+            verifyJWT();
+            jwtMenu.classList.remove('show');
+        });
+
+        document.getElementById('jwt-settings').addEventListener('click', () => {
+            openJWTSettings();
+            jwtMenu.classList.remove('show');
+        });
+
+        // Dropdown menu for JWE
+        const jweBtn = document.getElementById('jwe-btn');
+        const jweMenu = document.getElementById('jwe-menu');
+
+        jweBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            jweMenu.classList.toggle('show');
+        });
+
+        document.getElementById('jwe-encrypt').addEventListener('click', () => {
+            encryptJWE();
+            jweMenu.classList.remove('show');
+        });
+
+        document.getElementById('jwe-decrypt').addEventListener('click', () => {
+            decryptJWE();
+            jweMenu.classList.remove('show');
+        });
+
+        document.getElementById('jwe-settings').addEventListener('click', () => {
+            openJWTSettings();
+            jweMenu.classList.remove('show');
+        });
+
+        // JWT/JWE Settings Modal
+        const jwtSettingsModal = document.getElementById('jwt-settings-modal');
+
+        function openJWTSettings() {
+            updateJWTSettingsUI();
+            jwtSettingsModal.style.display = 'flex';
+        }
+
+        document.getElementById('jwt-settings-cancel').addEventListener('click', () => {
+            jwtSettingsModal.style.display = 'none';
+        });
+
+        document.getElementById('jwt-settings-save').addEventListener('click', async () => {
+            // Save settings from UI
+            jwtSettings.algorithm = document.getElementById('jwt-algorithm').value;
+            jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
+            jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
+            jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
+            jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
+            jwtSettings.expUnit = document.getElementById('jwt-exp-unit').value;
+
+            await saveJWTSettings(jwtSettings);
+            jwtSettingsModal.style.display = 'none';
+            updateStatus('JWT/JWE settings saved');
+        });
+
+        // Algorithm change handler
+        document.getElementById('jwt-algorithm').addEventListener('change', (e) => {
+            jwtSettings.algorithm = e.target.value;
+            updateJWTSettingsUI();
+        });
+
+        // Auto Exp checkbox handler
+        document.getElementById('jwt-auto-exp').addEventListener('change', (e) => {
+            const expConfigSection = document.getElementById('exp-config-section');
+            expConfigSection.style.display = e.target.checked ? '' : 'none';
+        });
+
+        // Generate key pair button
+        document.getElementById('generate-keypair-btn').addEventListener('click', () => {
+            generateKeyPair();
+        });
+
+        // Copy key buttons
+        document.getElementById('copy-public-key-btn').addEventListener('click', () => {
+            const publicKey = document.getElementById('jwt-public-key').value;
+            if (publicKey) {
+                copyToClipboard(publicKey, 'Public key');
+            }
+        });
+
+        document.getElementById('copy-private-key-btn').addEventListener('click', () => {
+            const privateKey = document.getElementById('jwt-private-key').value;
+            if (privateKey) {
+                copyToClipboard(privateKey, 'Private key');
+            }
+        });
+
+        // Close settings modal when clicking outside
+        jwtSettingsModal.addEventListener('click', (e) => {
+            if (e.target === jwtSettingsModal) {
+                jwtSettingsModal.style.display = 'none';
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown')) {
+                convertCaseMenu.classList.remove('show');
+                escapeUnescapeMenu.classList.remove('show');
+                formatMenu.classList.remove('show');
+                base64Menu.classList.remove('show');
+                qrcodeMenu.classList.remove('show');
+                jwtMenu.classList.remove('show');
+                jweMenu.classList.remove('show');
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Cmd+S or Ctrl+S for save
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                saveCurrentFile();
+            }
+
+            // Cmd+N or Ctrl+N for new file
+            if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+                e.preventDefault();
+                createNewFile();
+            }
+        });
+
+        // ===== Initialize =====
+        async function init() {
+            await initDB();
+            await initJWTSettings();
+            await renderFileTree();
+            initFileTreeDropZone();
+            createEditor('', 'json', 'dark');
+            updateStatus('Ready');
+
+            // Attach context menu to editor container
+            const editorContainer = document.getElementById('editor-container');
+            editorContainer.addEventListener('contextmenu', showEditorContextMenu);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
