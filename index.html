@@ -4948,18 +4948,22 @@
         async function showEditorContextMenu(event) {
             event.preventDefault();
 
-            if (view && typeof view.posAtCoords === 'function') {
+            // Check if text is selected (before moving cursor)
+            let state = view?.state;
+            let selection = state?.selection.main;
+            let hasSelection = selection && selection.anchor !== selection.head;
+
+            // If no selection, move cursor to right-click position
+            if (!hasSelection && view && typeof view.posAtCoords === 'function') {
                 const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
                 if (typeof pos === 'number') {
                     view.dispatch({ selection: { anchor: pos, head: pos } });
                     view.focus();
+                    state = view.state;
+                    selection = state?.selection.main;
+                    hasSelection = selection && selection.anchor !== selection.head;
                 }
             }
-
-            // Check if text is selected
-            const state = view?.state;
-            const selection = state?.selection.main;
-            const hasSelection = selection && selection.anchor !== selection.head;
 
             let isJsonFile = false;
             let jsonPath = null;
@@ -5008,8 +5012,39 @@
                 }
             ];
 
+            if (hasSelection) {
+                const selectedText = state.doc.sliceString(
+                    Math.min(selection.anchor, selection.head),
+                    Math.max(selection.anchor, selection.head)
+                );
+                options.splice(2, 0, {
+                    label: 'Copy Selection to New File',
+                    disabled: !selectedText,
+                    action: async () => {
+                        const baseName = await getNextUntitledName();
+                        const name = baseName;
+                        const tempId = nextTempId--;
+                        tempFiles.set(tempId, {
+                            id: tempId,
+                            name: name,
+                            path: `/${name}`,
+                            content: selectedText,
+                            type: 'file',
+                            parentId: null,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        });
+                        await openFile(tempId);
+                        isDirty = true;
+                        fileDirtyState.set(tempId, true);
+                    }
+                });
+            }
+
             if (isJsonFile) {
-                options.splice(3, 0, {
+                const separatorIndex = options.findIndex(option => option.type === 'separator');
+                const insertIndex = separatorIndex === -1 ? options.length : separatorIndex;
+                options.splice(insertIndex, 0, {
                     label: 'Copy JSON Path',
                     disabled: !jsonPath,
                     action: async () => {
@@ -5208,6 +5243,42 @@
                 renderFileTree();
                 updateStatus(`Renamed to ${newName}`);
             });
+        }
+
+        async function duplicateFileItem(fileItem) {
+            const sourceFile = await getItem(fileItem.id);
+            if (!sourceFile || sourceFile.type !== 'file') return;
+
+            const content = draftContent.has(sourceFile.id)
+                ? draftContent.get(sourceFile.id)
+                : (sourceFile.content || '');
+
+            let name = await getNextUntitledName();
+            const lastDot = sourceFile.name.lastIndexOf('.');
+            const ext = lastDot > 0 ? sourceFile.name.slice(lastDot) : '';
+            if (ext && !name.endsWith(ext)) {
+                name = `${name}${ext}`;
+            }
+            const tempId = nextTempId--;
+            const path = sourceFile.parentId
+                ? `${await getItemPath(sourceFile.parentId)}/${name}`
+                : name;
+
+            tempFiles.set(tempId, {
+                id: tempId,
+                name: name,
+                path: path,
+                content: content,
+                type: 'file',
+                parentId: sourceFile.parentId ?? null,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            await openFile(tempId);
+            isDirty = true;
+            fileDirtyState.set(tempId, true);
+            updateStatus(`Duplicated ${sourceFile.name}`);
         }
 
         function showInlineConfirm(actionsContainer, deleteBtn, item) {
@@ -5708,6 +5779,14 @@
                     }
                 });
             }
+
+            options.push({
+                label: 'Duplicate File',
+                disabled: false,
+                action: async () => {
+                    await duplicateFileItem(fileItem);
+                }
+            });
 
             const isActiveFile = fileItem.id === currentFileId;
             options.push(
