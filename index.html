@@ -153,6 +153,12 @@
             border-radius: 0 0 3px 3px;
         }
 
+        .dropdown-content .menu-separator {
+            height: 1px;
+            background: #2b2b2b;
+            margin: 4px 0;
+        }
+
         .main-container {
             display: flex;
             flex: 1;
@@ -415,12 +421,38 @@
             font-size: 13px;
             border-bottom: 1px solid #1e1e1e;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .editor-header .filename {
             font-weight: 500;
+        }
+
+        .comparison-filenames {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .comparison-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            width: 100%;
+        }
+
+        #filename-main,
+        #filename-compare {
+            width: 50%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #filename-compare {
+            text-align: right;
         }
 
         .editor-header .close-btn {
@@ -429,6 +461,7 @@
             color: #cccccc;
             cursor: pointer;
             font-size: 12px;
+            margin-left: auto;
         }
 
         .editor-header .close-btn:hover {
@@ -568,6 +601,12 @@
 
         .cm-lintPoint-error:after {
             border-bottom-color: #f85149;
+        }
+
+        .custom-context-menu .context-menu-separator {
+            height: 1px;
+            background: #2b2b2b;
+            margin: 4px 0;
         }
 
         .status-bar {
@@ -716,16 +755,19 @@
         <div class="dropdown">
             <button id="escape-unescape-btn">Escape/Unescape ▾</button>
             <div class="dropdown-content" id="escape-unescape-menu">
-                <button id="escape-json">Escape JSON</button>
-                <button id="unescape-json">Unescape JSON</button>
-                <button id="escape-html">Escape HTML</button>
-                <button id="unescape-html">Unescape HTML</button>
-                <button id="encode-full-url">Encode URL</button>
-                <button id="decode-full-url">Decode URL</button>
-                <button id="encode-url">Encode URL Component</button>
-                <button id="decode-url">Decode URL Component</button>
-            </div>
+            <button id="escape-json">Escape JSON</button>
+            <button id="unescape-json">Unescape JSON</button>
+            <div class="menu-separator"></div>
+            <button id="escape-html">Escape HTML</button>
+            <button id="unescape-html">Unescape HTML</button>
+            <div class="menu-separator"></div>
+            <button id="encode-full-url">Encode URL</button>
+            <button id="decode-full-url">Decode URL</button>
+            <div class="menu-separator"></div>
+            <button id="encode-url">Encode URL Component</button>
+            <button id="decode-url">Decode URL Component</button>
         </div>
+    </div>
 
         <div class="dropdown">
             <button id="base64-btn">Base64 ▾</button>
@@ -786,8 +828,7 @@
 
         <div id="editor-container">
             <div class="editor-header">
-                    <span class="filename" id="filename-main"></span>
-                    <span class="filename" id="filename-compare"></span>
+                <div class="comparison-controls">
                     <div class="comparison-format-selector" id="format-toggle-container" style="display: none;">
                         <label class="format-label">
                             <input type="checkbox" id="comparison-format-toggle" />
@@ -803,7 +844,12 @@
                     </div>
                     <button class="close-btn" id="close-comparison-btn" title="Close Comparison">✕</button>
                 </div>
-                <div id="editor-content" class="editor-content"></div>
+                <div class="comparison-filenames">
+                    <span class="filename" id="filename-main"></span>
+                    <span class="filename" id="filename-compare"></span>
+                </div>
+            </div>
+            <div id="editor-content" class="editor-content"></div>
         </div>
     </div>
 
@@ -1851,6 +1897,32 @@
             currentFileId = fileId;
 
             updateCursorInfo(view);
+        }
+
+        function closeEditor() {
+            isSplitEditor = false;
+            const editorContainer = document.getElementById('editor-container');
+            editorContainer.classList.remove('editor-split');
+
+            destroyPaneEditors();
+            view = null;
+
+            const container = document.getElementById('editor-content');
+            container.innerHTML = '';
+
+            leftFileId = null;
+            rightFileId = null;
+            currentFileId = null;
+            leftLanguage = 'plaintext';
+            rightLanguage = 'plaintext';
+            currentLanguage = 'plaintext';
+            activePane = 'left';
+            isDirty = false;
+
+            const cursorInfo = document.getElementById('cursor-info');
+            if (cursorInfo) {
+                cursorInfo.textContent = 'No file open';
+            }
         }
 
         function setActivePane(pane) {
@@ -4819,6 +4891,13 @@
             menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
 
             options.forEach(option => {
+                if (option.type === 'separator') {
+                    const separator = document.createElement('div');
+                    separator.className = 'context-menu-separator';
+                    menu.appendChild(separator);
+                    return;
+                }
+
                 const item = document.createElement('div');
                 item.className = 'context-menu-item';
                 item.textContent = option.label;
@@ -4866,13 +4945,33 @@
             }
         }
 
-        function showEditorContextMenu(event) {
+        async function showEditorContextMenu(event) {
             event.preventDefault();
+
+            if (view && typeof view.posAtCoords === 'function') {
+                const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                if (typeof pos === 'number') {
+                    view.dispatch({ selection: { anchor: pos, head: pos } });
+                    view.focus();
+                }
+            }
 
             // Check if text is selected
             const state = view?.state;
             const selection = state?.selection.main;
             const hasSelection = selection && selection.anchor !== selection.head;
+
+            let isJsonFile = false;
+            let jsonPath = null;
+            if (currentFileId) {
+                const file = await getItem(currentFileId);
+                if (file && detectLanguageFromFilename(file.name) === 'json') {
+                    isJsonFile = true;
+                    if (state) {
+                        jsonPath = getJsonPath(state);
+                    }
+                }
+            }
 
             const options = [
                 {
@@ -4899,6 +4998,7 @@
                         }
                     }
                 },
+                { type: 'separator' },
                 {
                     label: 'Extract JSON Subtree',
                     disabled: !view || !currentFileId,
@@ -4907,6 +5007,18 @@
                     }
                 }
             ];
+
+            if (isJsonFile) {
+                options.splice(3, 0, {
+                    label: 'Copy JSON Path',
+                    disabled: !jsonPath,
+                    action: async () => {
+                        if (jsonPath) {
+                            await copyToClipboard(jsonPath, 'JSON path');
+                        }
+                    }
+                });
+            }
 
             createContextMenu(event.clientX, event.clientY, options);
         }
@@ -5178,7 +5290,22 @@
             // Clear drafts for all deleted files (including children if folder)
             idsToDelete.forEach(id => clearDraft(id));
 
-            if (wasCurrentFile) {
+            const leftDeleted = leftFileId && idsToDelete.includes(leftFileId);
+            const rightDeleted = rightFileId && idsToDelete.includes(rightFileId);
+
+            if (leftDeleted || rightDeleted) {
+                if (isSplitEditor) {
+                    if (leftDeleted && rightDeleted) {
+                        closeEditor();
+                    } else if (leftDeleted) {
+                        await closeSplitPane('left');
+                    } else {
+                        await closeSplitPane('right');
+                    }
+                } else {
+                    closeEditor();
+                }
+            } else if (wasCurrentFile) {
                 currentFileId = null;
                 isDirty = false;
                 createSingleEditor('', 'plaintext', currentTheme, false, null);
@@ -5582,14 +5709,16 @@
                 });
             }
 
+            const isActiveFile = fileItem.id === currentFileId;
             options.push(
-                {
+                { type: 'separator' },
+                ...(isActiveFile ? [] : [{
                     label: 'Compare with Active File',
                     disabled: false,
                     action: async () => {
                         await compareFileWithActive(fileItem);
                     }
-                },
+                }]),
                 {
                     label: 'Compare with Clipboard',
                     disabled: false,
