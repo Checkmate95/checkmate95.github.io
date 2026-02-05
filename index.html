@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -367,7 +368,7 @@
             min-height: 0;
         }
 
-        #editor-container.editor-split .editor-pane + .editor-pane {
+        #editor-container.editor-split .editor-pane+.editor-pane {
             border-left: 1px solid #2b2b2b;
         }
 
@@ -553,7 +554,8 @@
         }
 
         .cm-merge-revert {
-            display: none; /* Hide revert buttons since this is read-only comparison */
+            display: none;
+            /* Hide revert buttons since this is read-only comparison */
         }
 
         .cm-chunkButtons {
@@ -755,25 +757,32 @@
         <div class="dropdown">
             <button id="escape-unescape-btn">Escape/Unescape ▾</button>
             <div class="dropdown-content" id="escape-unescape-menu">
-            <button id="escape-json">Escape JSON</button>
-            <button id="unescape-json">Unescape JSON</button>
-            <div class="menu-separator"></div>
-            <button id="escape-html">Escape HTML</button>
-            <button id="unescape-html">Unescape HTML</button>
-            <div class="menu-separator"></div>
-            <button id="encode-full-url">Encode URL</button>
-            <button id="decode-full-url">Decode URL</button>
-            <div class="menu-separator"></div>
-            <button id="encode-url">Encode URL Component</button>
-            <button id="decode-url">Decode URL Component</button>
+                <button id="escape-json">Escape JSON</button>
+                <button id="unescape-json">Unescape JSON</button>
+                <div class="menu-separator"></div>
+                <button id="escape-html">Escape HTML</button>
+                <button id="unescape-html">Unescape HTML</button>
+                <div class="menu-separator"></div>
+                <button id="encode-full-url">Encode URL</button>
+                <button id="decode-full-url">Decode URL</button>
+                <div class="menu-separator"></div>
+                <button id="encode-url">Encode URL Component</button>
+                <button id="decode-url">Decode URL Component</button>
+            </div>
         </div>
-    </div>
 
         <div class="dropdown">
             <button id="base64-btn">Base64 ▾</button>
             <div class="dropdown-content" id="base64-menu">
                 <button id="encode-base64">Encode Base64</button>
                 <button id="decode-base64">Decode Base64 (Preview)</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button id="hashing-btn">Hashing ▾</button>
+            <div class="dropdown-content" id="hashing-menu">
+                <button id="hash-sha256">SHA-256</button>
             </div>
         </div>
 
@@ -884,7 +893,8 @@
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">Algorithm:</label>
-                    <select id="jwt-algorithm" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                    <select id="jwt-algorithm"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
                         <option value="HS256">HS256 (HMAC + SHA-256)</option>
                         <option value="HS384">HS384 (HMAC + SHA-384)</option>
                         <option value="HS512">HS512 (HMAC + SHA-512)</option>
@@ -898,29 +908,45 @@
                 </div>
 
                 <div id="jwt-secret-key-section" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">JWT Secret Key (minimum 32 chars for HS256):</label>
-                    <input type="text" id="jwt-secret-key" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Enter secret key..." />
-                    <small style="color: #888; display: block; margin-top: 5px;">HS256: 32+ chars, HS384: 48+ chars, HS512: 64+ chars</small>
+                    <label style="display: block; margin-bottom: 5px;">JWT Secret Key (minimum 32 chars for
+                        HS256):</label>
+                    <input type="text" id="jwt-secret-key"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
+                        placeholder="Enter secret key..." />
+                    <small style="color: #888; display: block; margin-top: 5px;">HS256: 32+ chars, HS384: 48+ chars,
+                        HS512: 64+ chars</small>
                 </div>
 
                 <div id="jwt-keypair-section" style="margin-bottom: 15px; display: none;">
                     <div style="margin-bottom: 10px;">
-                        <button id="jwt-generate-keypair-btn" style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate Key Pair</button>
+                        <button id="jwt-generate-keypair-btn"
+                            style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate
+                            Key Pair</button>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">Public Key (PEM SPKI) - Paste or Generate:</label>
-                        <textarea id="jwt-public-key" style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----"></textarea>
+                        <label style="display: block; margin-bottom: 5px;">Public Key (PEM SPKI) - Paste or
+                            Generate:</label>
+                        <textarea id="jwt-public-key"
+                            style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
+                            placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----"></textarea>
                         <div style="display: flex; gap: 5px; margin-top: 5px;">
-                            <button id="jwt-copy-public-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
-                            <button id="jwt-clear-public-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
+                            <button id="jwt-copy-public-key-btn"
+                                style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                            <button id="jwt-clear-public-key-btn"
+                                style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
                         </div>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS8) - Paste or Generate:</label>
-                        <textarea id="jwt-private-key" style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+                        <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS8) - Paste or
+                            Generate:</label>
+                        <textarea id="jwt-private-key"
+                            style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
+                            placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
                         <div style="display: flex; gap: 5px; margin-top: 5px;">
-                            <button id="jwt-copy-private-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
-                            <button id="jwt-clear-private-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
+                            <button id="jwt-copy-private-key-btn"
+                                style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                            <button id="jwt-clear-private-key-btn"
+                                style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
                         </div>
                     </div>
                 </div>
@@ -938,8 +964,10 @@
 
                     <div id="exp-config-section" style="display: none;">
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="jwt-exp-duration" min="1" value="1" style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
-                            <select id="jwt-exp-unit" style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                            <input type="number" id="jwt-exp-duration" min="1" value="1"
+                                style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
+                            <select id="jwt-exp-unit"
+                                style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
                                 <option value="seconds">Seconds</option>
                                 <option value="minutes">Minutes</option>
                                 <option value="hours" selected>Hours</option>
@@ -967,28 +995,41 @@
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">JWE Algorithm:</label>
-                    <select id="jwe-algorithm" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                    <select id="jwe-algorithm"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
                         <option value="dir">dir (A256GCM, shared secret)</option>
                         <option value="ECDH-ES">ECDH-ES (A256GCM, EC key agreement)</option>
                     </select>
-                    <small style="color: #888; display: block; margin-top: 5px;">Choose between shared secret or EC key agreement for JWE.</small>
+                    <small style="color: #888; display: block; margin-top: 5px;">Choose between shared secret or EC key
+                        agreement for JWE.</small>
                 </div>
 
                 <div id="jwe-secret-key-section" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">JWE Secret Key (minimum 32 chars for AES-256):</label>
-                    <input type="text" id="jwe-secret-key" style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Enter secret key for JWE encryption..." />
-                    <small style="color: #888; display: block; margin-top: 5px;">Required: 32+ characters for AES-256 GCM encryption</small>
+                    <label style="display: block; margin-bottom: 5px;">JWE Secret Key (minimum 32 chars for
+                        AES-256):</label>
+                    <input type="text" id="jwe-secret-key"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
+                        placeholder="Enter secret key for JWE encryption..." />
+                    <small style="color: #888; display: block; margin-top: 5px;">Required: 32+ characters for AES-256
+                        GCM encryption</small>
                 </div>
 
                 <div id="jwe-keypair-section" style="margin-bottom: 15px; display: none;">
                     <label style="display: block; margin-bottom: 5px;">JWE Public Key (PEM):</label>
-                    <textarea id="jwe-public-key" style="width: 100%; height: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Paste recipient public key (PEM) for ECDH-ES..."></textarea>
+                    <textarea id="jwe-public-key"
+                        style="width: 100%; height: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
+                        placeholder="Paste recipient public key (PEM) for ECDH-ES..."></textarea>
                     <label style="display: block; margin: 10px 0 5px;">JWE Private Key (PEM):</label>
-                    <textarea id="jwe-private-key" style="width: 100%; height: 120px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;" placeholder="Paste private key (PEM) for decryption..."></textarea>
+                    <textarea id="jwe-private-key"
+                        style="width: 100%; height: 120px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
+                        placeholder="Paste private key (PEM) for decryption..."></textarea>
                     <div style="display: flex; gap: 5px; margin-top: 8px;">
-                        <button id="jwe-generate-keypair-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Generate Key Pair</button>
+                        <button id="jwe-generate-keypair-btn"
+                            style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Generate
+                            Key Pair</button>
                     </div>
-                    <small style="color: #888; display: block; margin-top: 5px;">Use matching EC keys (e.g., P-256) for ECDH-ES with A256GCM.</small>
+                    <small style="color: #888; display: block; margin-top: 5px;">Use matching EC keys (e.g., P-256) for
+                        ECDH-ES with A256GCM.</small>
                 </div>
 
                 <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
@@ -1004,8 +1045,10 @@
 
                     <div id="jwe-exp-config-section" style="display: none;">
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="jwe-exp-duration" min="1" value="1" style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
-                            <select id="jwe-exp-unit" style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                            <input type="number" id="jwe-exp-duration" min="1" value="1"
+                                style="width: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;" />
+                            <select id="jwe-exp-unit"
+                                style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
                                 <option value="seconds">Seconds</option>
                                 <option value="minutes">Minutes</option>
                                 <option value="hours" selected>Hours</option>
@@ -1070,7 +1113,8 @@
                             <input type="text" id="custom-regex-pattern" placeholder="e.g., [0-9]{3}-[0-9]{3}-[0-9]{4}">
                         </div>
                         <div class="form-group">
-                            <button type="button" id="delete-custom-regex-btn" class="btn-secondary" style="display: none;">Delete Custom Regex</button>
+                            <button type="button" id="delete-custom-regex-btn" class="btn-secondary"
+                                style="display: none;">Delete Custom Regex</button>
                         </div>
                     </div>
 
@@ -1481,7 +1525,7 @@
 
             // Self-closing/void HTML tags that don't need closing tags
             const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
-                                      'link', 'meta', 'param', 'source', 'track', 'wbr']);
+                'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
             // Stack to track opening tags
             const tagStack = [];
@@ -2148,9 +2192,9 @@
             const num = parseInt(trimmed, 10);
             // Valid timestamp: integer, matches original string (no decimals), reasonable range (1970-9999)
             return !isNaN(num) &&
-                   trimmed === num.toString() &&
-                   num > 0 &&
-                   num < 253402300799;
+                trimmed === num.toString() &&
+                num > 0 &&
+                num < 253402300799;
         }
 
         // Format Unix timestamp to human-readable date
@@ -3683,6 +3727,38 @@
             return opened;
         }
 
+        async function hashSHA256ToTab() {
+            const text = getSelectedOrAllText();
+
+            if (text === null) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            if (!text) {
+                updateStatus('No text to hash');
+                return false;
+            }
+
+            try {
+                const bytes = new TextEncoder().encode(text);
+                const digest = await crypto.subtle.digest('SHA-256', bytes);
+                const hash = Array.from(new Uint8Array(digest))
+                    .map((b) => b.toString(16).padStart(2, '0'))
+                    .join('');
+
+                const opened = openResultInNewTab('SHA-256 Hash', hash);
+                if (opened) {
+                    updateStatus('SHA-256 hash opened in new tab');
+                }
+
+                return opened;
+            } catch (error) {
+                updateStatus(`Failed to hash: ${error.message}`);
+                return false;
+            }
+        }
+
         function decodeBase64Preview() {
             if (!view) {
                 updateStatus('No editor available');
@@ -5168,29 +5244,29 @@
                 return;
             }
 
-                if (isTemporary) {
-                    // Convert temporary file to permanent (non-Untitled case)
-                    const tempId = currentFileId;
-                    const permanentId = await createFile(file.name, content);
+            if (isTemporary) {
+                // Convert temporary file to permanent (non-Untitled case)
+                const tempId = currentFileId;
+                const permanentId = await createFile(file.name, content);
 
-                    // Remove from temporary storage
-                    tempFiles.delete(tempId);
-                    fileDirtyState.delete(tempId);
-                    draftContent.delete(tempId);
+                // Remove from temporary storage
+                tempFiles.delete(tempId);
+                fileDirtyState.delete(tempId);
+                draftContent.delete(tempId);
 
-                    // Update current file ID
-                    currentFileId = permanentId;
-                    if (isSplitEditor) {
-                        if (activePane === 'left') {
-                            leftFileId = permanentId;
-                        } else {
-                            rightFileId = permanentId;
-                        }
-                    } else {
+                // Update current file ID
+                currentFileId = permanentId;
+                if (isSplitEditor) {
+                    if (activePane === 'left') {
                         leftFileId = permanentId;
+                    } else {
+                        rightFileId = permanentId;
                     }
-                    await persistLastOpenedFile(currentFileId);
                 } else {
+                    leftFileId = permanentId;
+                }
+                await persistLastOpenedFile(currentFileId);
+            } else {
                 // Normal update for existing file
                 await updateFile(currentFileId, { content });
             }
@@ -5713,19 +5789,19 @@
                     }
                 };
 
-            const toggleContainer = document.getElementById('format-toggle-container');
-            const toggle = document.getElementById('comparison-format-toggle');
-            const toggleText = document.getElementById('comparison-format-text');
-            const viewContainer = document.getElementById('view-mode-container');
-            const viewSelect = document.getElementById('comparison-view-mode');
+                const toggleContainer = document.getElementById('format-toggle-container');
+                const toggle = document.getElementById('comparison-format-toggle');
+                const toggleText = document.getElementById('comparison-format-text');
+                const viewContainer = document.getElementById('view-mode-container');
+                const viewSelect = document.getElementById('comparison-view-mode');
 
-            if (toggle) toggle.checked = false;
-            if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
-            if (toggleText) {
-                toggleText.textContent = canFormat ? `Format as ${formatType.toUpperCase()}` : 'Format view';
-            }
-            if (viewContainer) viewContainer.style.display = 'flex';
-            if (viewSelect) viewSelect.value = comparisonViewMode;
+                if (toggle) toggle.checked = false;
+                if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
+                if (toggleText) {
+                    toggleText.textContent = canFormat ? `Format as ${formatType.toUpperCase()}` : 'Format view';
+                }
+                if (viewContainer) viewContainer.style.display = 'flex';
+                if (viewSelect) viewSelect.value = comparisonViewMode;
 
                 document.getElementById('close-comparison-btn').style.display = 'block';
 
@@ -6054,47 +6130,16 @@
 
             const reader = new FileReader();
 
-            if (isBinaryFile(file.name)) {
-                // Binary file - convert to base64
-                reader.onload = async (event) => {
-                    const dataUrl = event.target.result;
+            // Binary file - convert to base64
+            reader.onload = async (event) => {
+                const dataUrl = event.target.result;
 
-                    // Extract base64 content from data URL
-                    // Data URL format: data:image/png;base64,iVBORw0KGgo...
-                    const matches = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+                // Extract base64 content from data URL
+                // Data URL format: data:image/png;base64,iVBORw0KGgo...
+                const matches = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
 
-                    if (matches && matches[1]) {
-                        const base64Content = matches[1];
-
-                        // Create temporary file (not saved to IndexedDB yet)
-                        const tempId = nextTempId--;
-                        tempFiles.set(tempId, {
-                            id: tempId,
-                            name: file.name,
-                            path: `/${file.name}`,
-                            content: base64Content,
-                            type: 'file',
-                            parentId: null,
-                            createdAt: new Date(),
-                            updatedAt: new Date()
-                        });
-
-                        // Mark imported file as dirty (unsaved)
-                        await openFile(tempId);
-                        isDirty = true;
-                        fileDirtyState.set(tempId, true);
-
-                        updateStatus(`Imported binary file: ${file.name}`);
-                    } else {
-                        updateStatus('Failed to convert file to base64');
-                    }
-                };
-
-                reader.readAsDataURL(file);
-            } else {
-                // Text file - read as text
-                reader.onload = async (event) => {
-                    const content = event.target.result;
+                if (matches && matches[1]) {
+                    const base64Content = matches[1];
 
                     // Create temporary file (not saved to IndexedDB yet)
                     const tempId = nextTempId--;
@@ -6102,24 +6147,25 @@
                         id: tempId,
                         name: file.name,
                         path: `/${file.name}`,
-                        content: content,
+                        content: base64Content,
                         type: 'file',
                         parentId: null,
                         createdAt: new Date(),
                         updatedAt: new Date()
                     });
 
-                    await openFile(tempId);
-
                     // Mark imported file as dirty (unsaved)
+                    await openFile(tempId);
                     isDirty = true;
                     fileDirtyState.set(tempId, true);
 
-                    updateStatus(`Imported file: ${file.name}`);
-                };
+                    updateStatus(`Imported binary file: ${file.name}`);
+                } else {
+                    updateStatus('Failed to convert file to base64');
+                }
+            };
 
-                reader.readAsText(file);
-            }
+            reader.readAsDataURL(file);
         });
 
         // Listen for comparison format toggle (when allowed)
@@ -6272,6 +6318,19 @@
         document.getElementById('decode-base64').addEventListener('click', () => {
             decodeBase64Preview();
             base64Menu.classList.remove('show');
+        });
+
+        const hashingBtn = document.getElementById('hashing-btn');
+        const hashingMenu = document.getElementById('hashing-menu');
+
+        hashingBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hashingMenu.classList.toggle('show');
+        });
+
+        document.getElementById('hash-sha256').addEventListener('click', () => {
+            hashSHA256ToTab();
+            hashingMenu.classList.remove('show');
         });
 
         // Dropdown menu for QR Code
@@ -6646,6 +6705,7 @@
             escapeUnescapeMenu.classList.remove('show');
             formatMenu.classList.remove('show');
             base64Menu.classList.remove('show');
+            hashingMenu.classList.remove('show');
             qrcodeMenu.classList.remove('show');
             jwtMenu.classList.remove('show');
             jweMenu.classList.remove('show');
@@ -6675,8 +6735,8 @@
             if (e.key === 'Tab') {
                 const focusedView = (leftView && leftView.hasFocus) ? leftView
                     : (rightView && rightView.hasFocus) ? rightView
-                    : (view && view.hasFocus) ? view
-                    : null;
+                        : (view && view.hasFocus) ? view
+                            : null;
                 if (focusedView) {
                     e.preventDefault();
                     const selection = focusedView.state.selection.main;
@@ -6756,4 +6816,5 @@
         init();
     </script>
 </body>
+
 </html>
