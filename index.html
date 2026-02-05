@@ -442,6 +442,22 @@
             align-items: center;
         }
 
+        .comparison-view-selector {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .comparison-view-selector select {
+            background: #3c3c3c;
+            color: #fff;
+            border: 1px solid #3e3e42;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
         .comparison-format-selector input[type="checkbox"] {
             width: 14px;
             height: 14px;
@@ -483,7 +499,7 @@
         }
 
         .cm-changedLine {
-            background: rgba(255, 255, 0, 0.08);
+            background-color: rgba(255, 255, 0, 0.08) !important;
         }
 
         /* MergeView container styling */
@@ -505,6 +521,10 @@
 
         .cm-merge-revert {
             display: none; /* Hide revert buttons since this is read-only comparison */
+        }
+
+        .cm-chunkButtons {
+            display: none;
         }
 
         .cm-editor {
@@ -773,6 +793,13 @@
                             <input type="checkbox" id="comparison-format-toggle" />
                             <span id="comparison-format-text">Format view</span>
                         </label>
+                    </div>
+                    <div class="comparison-view-selector" id="view-mode-container" style="display: none;">
+                        <label class="format-label" for="comparison-view-mode">View</label>
+                        <select id="comparison-view-mode">
+                            <option value="side-by-side">Side-by-side</option>
+                            <option value="inline">Inline</option>
+                        </select>
                     </div>
                     <button class="close-btn" id="close-comparison-btn" title="Close Comparison">✕</button>
                 </div>
@@ -1053,7 +1080,7 @@
         import { yaml } from '@codemirror/lang-yaml';
         import { oneDark } from '@codemirror/theme-one-dark';
         import { search, highlightSelectionMatches } from '@codemirror/search';
-        import { MergeView } from '@codemirror/merge';
+        import { MergeView, unifiedMergeView } from '@codemirror/merge';
         import { linter, lintGutter } from '@codemirror/lint';
         import * as jsYaml from 'js-yaml';
         import QRCode from 'qrcode';
@@ -1621,6 +1648,7 @@
         let mergeView = null; // MergeView instance for diff comparison
         let comparisonState = null; // Store content and options for current comparison
         let comparisonFormatEnabled = false; // Track whether formatted view is active
+        let comparisonViewMode = 'side-by-side';
 
         // ===== Editor Functions =====
         function buildEditorExtensions(fileId, pane, readonly) {
@@ -5253,24 +5281,56 @@
 
             if (mergeView) {
                 mergeView.destroy();
+                mergeView = null;
             }
 
-            mergeView = new MergeView({
-                a: {
+            if (comparisonViewMode === 'inline') {
+                const inlineExtensions = [
+                    basicSetup,
+                    search({ top: true }),
+                    highlightSelectionMatches(),
+                    EditorView.editable.of(false),
+                    unifiedMergeView({ original: rightContent })
+                ];
+
+                const inlineLangExtension = languageMap[comparisonState.left.lang];
+                if (inlineLangExtension) {
+                    const extValue = inlineLangExtension();
+                    if (Array.isArray(extValue)) {
+                        inlineExtensions.push(...extValue);
+                    } else {
+                        inlineExtensions.push(extValue);
+                    }
+                }
+
+                if (currentTheme === 'dark') {
+                    inlineExtensions.push(oneDark);
+                }
+
+                view = new EditorView({
                     doc: leftContent,
-                    extensions: leftExtensions
-                },
-                b: {
-                    doc: rightContent,
-                    extensions: rightExtensions
-                },
-                parent: mainContainer
-            });
+                    extensions: inlineExtensions,
+                    parent: mainContainer
+                });
+            } else {
+                mergeView = new MergeView({
+                    a: {
+                        doc: leftContent,
+                        extensions: leftExtensions
+                    },
+                    b: {
+                        doc: rightContent,
+                        extensions: rightExtensions
+                    },
+                    parent: mainContainer
+                });
+            }
 
             const formatLabel = comparisonFormatEnabled && comparisonState.formatType !== 'none'
                 ? `${comparisonState.formatType.toUpperCase()}`
                 : 'Unformatted';
-            const finalStatus = statusMessage || `Comparing ${comparisonState.left.name} vs ${comparisonState.right.name} (${formatLabel})`;
+            const viewLabel = comparisonViewMode === 'inline' ? 'Inline' : 'Side-by-side';
+            const finalStatus = statusMessage || `Comparing ${comparisonState.left.name} vs ${comparisonState.right.name} (${formatLabel}, ${viewLabel})`;
             updateStatus(finalStatus);
             return comparisonFormatEnabled || !shouldFormat;
         }
@@ -5343,12 +5403,16 @@
             const toggleContainer = document.getElementById('format-toggle-container');
             const toggle = document.getElementById('comparison-format-toggle');
             const toggleText = document.getElementById('comparison-format-text');
+            const viewContainer = document.getElementById('view-mode-container');
+            const viewSelect = document.getElementById('comparison-view-mode');
 
             if (toggle) toggle.checked = false;
             if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
             if (toggleText) {
                 toggleText.textContent = canFormat ? `Format as ${leftFormat.toUpperCase()}` : 'Format view';
             }
+            if (viewContainer) viewContainer.style.display = 'flex';
+            if (viewSelect) viewSelect.value = comparisonViewMode;
 
             document.getElementById('close-comparison-btn').style.display = 'block';
 
@@ -5369,6 +5433,8 @@
             if (formatToggle) formatToggle.style.display = 'none';
             if (formatCheckbox) formatCheckbox.checked = false;
             comparisonFormatEnabled = false;
+            const viewContainer = document.getElementById('view-mode-container');
+            if (viewContainer) viewContainer.style.display = 'none';
 
             // Reset comparison state tracking
             comparisonState = null;
@@ -5449,15 +5515,19 @@
                     }
                 };
 
-                const toggleContainer = document.getElementById('format-toggle-container');
-                const toggle = document.getElementById('comparison-format-toggle');
-                const toggleText = document.getElementById('comparison-format-text');
+            const toggleContainer = document.getElementById('format-toggle-container');
+            const toggle = document.getElementById('comparison-format-toggle');
+            const toggleText = document.getElementById('comparison-format-text');
+            const viewContainer = document.getElementById('view-mode-container');
+            const viewSelect = document.getElementById('comparison-view-mode');
 
-                if (toggle) toggle.checked = false;
-                if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
-                if (toggleText) {
-                    toggleText.textContent = canFormat ? `Format as ${formatType.toUpperCase()}` : 'Format view';
-                }
+            if (toggle) toggle.checked = false;
+            if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
+            if (toggleText) {
+                toggleText.textContent = canFormat ? `Format as ${formatType.toUpperCase()}` : 'Format view';
+            }
+            if (viewContainer) viewContainer.style.display = 'flex';
+            if (viewSelect) viewSelect.value = comparisonViewMode;
 
                 document.getElementById('close-comparison-btn').style.display = 'block';
 
@@ -5853,6 +5923,17 @@
             const success = renderComparisonView(e.target.checked);
             if (e.target.checked && !success) {
                 e.target.checked = false;
+            }
+        });
+
+        document.getElementById('comparison-view-mode').addEventListener('change', (e) => {
+            if (!isComparing || !comparisonState) {
+                return;
+            }
+            comparisonViewMode = e.target.value === 'inline' ? 'inline' : 'side-by-side';
+            const success = renderComparisonView(comparisonFormatEnabled);
+            if (!success) {
+                updateStatus('Error switching view mode');
             }
         });
 
