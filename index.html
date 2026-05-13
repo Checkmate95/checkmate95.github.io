@@ -4861,7 +4861,54 @@
             }
         }
 
-        async function formatCode() {
+        const SUPPORTED_FORMAT_TYPES = new Set(['json', 'html', 'xml', 'yaml']);
+
+        function normalizeFormatType(formatType) {
+            const normalized = formatType?.trim().toLowerCase();
+            return SUPPORTED_FORMAT_TYPES.has(normalized) ? normalized : null;
+        }
+
+        async function resolveFormatType(file, providedFormatType = null, operation = 'format', useSavedDefault = false) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            const queryFormatType = normalizeFormatType(providedFormatType);
+
+            if (queryFormatType) {
+                formatSettings.lastSelectedType = queryFormatType;
+                await saveFormatSettings(formatSettings);
+                return queryFormatType;
+            }
+
+            if (isAmbiguousExtension(file.name)) {
+                const formatType = useSavedDefault ? normalizeFormatType(formatSettings.lastSelectedType) : null;
+                if (formatType) {
+                    return formatType;
+                }
+
+                try {
+                    // Manual toolbar runs still ask because ambiguous text needs a user-selected parser.
+                    const selectedType = await showFormatTypeModal();
+                    formatSettings.lastSelectedType = selectedType;
+                    await saveFormatSettings(formatSettings);
+                    return selectedType;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            if (ext === 'json' || ext === 'html' || ext === 'htm' || ext === 'xml' || ext === 'yaml' || ext === 'yml') {
+                if (ext === 'htm') {
+                    return 'html';
+                } else if (ext === 'yml') {
+                    return 'yaml';
+                }
+                return ext;
+            }
+
+            updateStatus(`${operation === 'format' ? 'Format' : 'Minify'} only supports JSON, HTML, XML, and YAML files`);
+            return null;
+        }
+
+        async function formatCode(options = {}) {
             if (!view || !currentFileId) {
                 updateStatus('No file is currently open');
                 return false;
@@ -4887,42 +4934,8 @@
             const file = await getItem(currentFileId);
             if (!file) return false;
 
-            let formatType;
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            // Check if extension is ambiguous (.txt or no extension)
-            if (isAmbiguousExtension(file.name)) {
-                try {
-                    // Show modal and wait for user selection
-                    formatType = await showFormatTypeModal();
-                    // Save the selected type for next time
-                    formatSettings.lastSelectedType = formatType;
-                    await saveFormatSettings(formatSettings);
-
-                    // If the file has no extension, append the selected type
-                    const nameParts = file.name.split('.');
-                    if (nameParts.length === 1) {
-                        const newName = `${file.name}.${formatType}`;
-                        await renameItem(currentFileId, newName);
-
-                        const language = detectLanguageFromFilename(newName);
-                        updateLanguage(language);
-                        renderFileTree();
-                    }
-                } catch (e) {
-                    // User cancelled
-                    return false;
-                }
-            } else if (ext === 'json' || ext === 'html' || ext === 'htm' || ext === 'xml' || ext === 'yaml' || ext === 'yml') {
-                if (ext === 'htm') {
-                    formatType = 'html';
-                } else if (ext === 'yml') {
-                    formatType = 'yaml';
-                } else {
-                    formatType = ext;
-                }
-            } else {
-                updateStatus('Format only supports JSON, HTML, XML, and YAML files');
+            const formatType = await resolveFormatType(file, options.formatType, 'format', options.useSavedFormatDefault);
+            if (!formatType) {
                 return false;
             }
 
@@ -4935,6 +4948,16 @@
 
                 view.focus()
 
+                const nameParts = file.name.split('.');
+                if (isAmbiguousExtension(file.name) && nameParts.length === 1) {
+                    const newName = `${file.name}.${formatType}`;
+                    await renameItem(currentFileId, newName);
+
+                    const language = detectLanguageFromFilename(newName);
+                    updateLanguage(language);
+                    renderFileTree();
+                }
+
                 updateStatus(`Formatted ${formatType.toUpperCase()}`);
                 return true;
             } catch (e) {
@@ -4943,7 +4966,7 @@
             }
         }
 
-        async function minifyCode() {
+        async function minifyCode(options = {}) {
             if (!view || !currentFileId) {
                 updateStatus('No file is currently open');
                 return false;
@@ -4968,31 +4991,8 @@
             const file = await getItem(currentFileId);
             if (!file) return false;
 
-            let formatType;
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            // Check if extension is ambiguous (.txt or no extension)
-            if (isAmbiguousExtension(file.name)) {
-                try {
-                    // Show modal and wait for user selection
-                    formatType = await showFormatTypeModal();
-                    // Save the selected type for next time
-                    formatSettings.lastSelectedType = formatType;
-                    await saveFormatSettings(formatSettings);
-                } catch (e) {
-                    // User cancelled
-                    return false;
-                }
-            } else if (ext === 'json' || ext === 'html' || ext === 'htm' || ext === 'xml' || ext === 'yaml' || ext === 'yml') {
-                if (ext === 'htm') {
-                    formatType = 'html';
-                } else if (ext === 'yml') {
-                    formatType = 'yaml';
-                } else {
-                    formatType = ext;
-                }
-            } else {
-                updateStatus('Minify only supports JSON, HTML, XML, and YAML files');
+            const formatType = await resolveFormatType(file, options.formatType, 'minify', options.useSavedFormatDefault);
+            if (!formatType) {
                 return false;
             }
 
@@ -5835,14 +5835,7 @@
             }
         }
 
-        async function createNewFile() {
-            // Generate filename (plain text by default)
-            const baseName = await getNextUntitledName();
-            const name = baseName;
-
-            // All new files start empty
-            const content = '';
-
+        async function createTemporaryFile(name, content = '') {
             // Create temporary file (not saved to IndexedDB yet)
             const tempId = nextTempId--;
             tempFiles.set(tempId, {
@@ -5860,6 +5853,13 @@
             await openFile(tempId);
             isDirty = true;
             fileDirtyState.set(tempId, true);
+            return tempId;
+        }
+
+        async function createNewFile() {
+            // Generate filename (plain text by default)
+            const baseName = await getNextUntitledName();
+            await createTemporaryFile(baseName, '');
         }
 
         // ===== UI Rendering =====
@@ -7806,6 +7806,76 @@
             }
         });
 
+        const QUERY_ACTIONS = {
+            format: ({ formatType }) => formatCode({ formatType, useSavedFormatDefault: true }),
+            minify: ({ formatType }) => minifyCode({ formatType, useSavedFormatDefault: true }),
+            pascalCase: () => transformText(toPascalCase, 'PascalCase'),
+            camelCase: () => transformText(toCamelCase, 'camelCase'),
+            snakeCase: () => transformText(toSnakeCase, 'snake_case'),
+            kebabCase: () => transformText(toKebabCase, 'kebab-case'),
+            upperCase: () => transformText(toUpperCase, 'UPPERCASE'),
+            lowerCase: () => transformText(toLowerCase, 'lowercase'),
+            escapeJson: () => escapeToNewTab(escapeJson, 'JSON (escaped)'),
+            unescapeJson: () => unescapeToNewFile(unescapeJson, 'JSON (unescaped)', 'json'),
+            encodeUrl: () => escapeToNewTab(encodeURL, 'URL (encoded)'),
+            decodeUrl: () => unescapeToNewFile(decodeURL, 'URL (decoded)', 'url'),
+            encodeFullUrl: () => escapeToNewTab(encodeFullURL, 'URL (full URI encoded)'),
+            decodeFullUrl: () => unescapeToNewFile(decodeFullURL, 'URL (full URI decoded)', 'url'),
+            escapeHtml: () => escapeToNewTab(escapeHTML, 'HTML (escaped)'),
+            unescapeHtml: () => unescapeToNewFile(unescapeHTML, 'HTML (unescaped)', 'html'),
+            base64Encode: () => encodeBase64ToTab(),
+            base64Decode: () => decodeBase64Preview(),
+            sha256: () => hashSHA256ToTab(),
+            qrGenerate: () => generateQRCode(),
+            jwtSign: () => signJWT(),
+            jwtVerify: () => verifyJWT(),
+            jwtDecode: () => decodeJWTWithoutVerify(),
+            jweEncrypt: () => encryptJWE(),
+            jweDecrypt: () => decryptJWE()
+        };
+
+        function readQueryShortcut() {
+            const params = new URLSearchParams(window.location.search);
+            const action = params.get('action')?.trim();
+            if (!action) return null;
+
+            return {
+                action,
+                input: params.get('input') ?? '',
+                filename: params.get('filename')?.trim() || null,
+                formatType: params.get('formatType') || null
+            };
+        }
+
+        function normalizeShortcutFilename(filename) {
+            if (!filename) return null;
+
+            // Query-provided names are temporary file labels; stripping path separators keeps the tree flat.
+            return filename.replace(/[\\/]+/g, '-').trim() || null;
+        }
+
+        async function runQueryShortcutIfPresent() {
+            const shortcut = readQueryShortcut();
+            if (!shortcut) return false;
+
+            const filename = normalizeShortcutFilename(shortcut.filename) || await getNextUntitledName();
+            await createTemporaryFile(filename, shortcut.input);
+
+            const action = QUERY_ACTIONS[shortcut.action];
+            if (!action) {
+                updateStatus(`Unsupported shortcut action: ${shortcut.action}`);
+                return true;
+            }
+
+            try {
+                await action(shortcut);
+            } catch (error) {
+                updateStatus(`Shortcut action failed: ${error.message}`);
+            }
+
+            return true;
+        }
+
         // ===== Initialize =====
         async function init() {
             await initDB();
@@ -7817,8 +7887,9 @@
             await renderFileTree();
             const items = await getAllItems();
             const files = items.filter(item => item.type === 'file');
+            const handledShortcut = await runQueryShortcutIfPresent();
             let opened = false;
-            if (appSettings.lastOpenedFileId) {
+            if (!handledShortcut && appSettings.lastOpenedFileId) {
                 const lastOpened = await getItem(appSettings.lastOpenedFileId);
                 if (lastOpened && lastOpened.type === 'file') {
                     await openFile(lastOpened.id);
@@ -7829,12 +7900,12 @@
                 }
             }
             let didOpenOrCreate = opened;
-            if (!opened && files.length === 0) {
+            if (!handledShortcut && !opened && files.length === 0) {
                 await createNewFile();
                 didOpenOrCreate = true;
             }
             initFileTreeDropZone();
-            if (!didOpenOrCreate) {
+            if (!handledShortcut && !didOpenOrCreate) {
                 updateStatus('Ready');
             }
 
