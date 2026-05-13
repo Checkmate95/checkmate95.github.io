@@ -1914,6 +1914,7 @@
         let isSplitEditor = false;
         let currentLanguage = 'plaintext';
         let isSplitSyncing = false;
+        let fileTreeRenderSequence = 0;
 
         // Temporary file management - files not yet saved to IndexedDB
         let tempFiles = new Map(); // Map<tempId, {name, content, type}> - temporary unsaved files
@@ -6453,12 +6454,16 @@
         }
 
         async function renderFileTree() {
+            const renderSequence = ++fileTreeRenderSequence;
             const fileTree = document.getElementById('file-tree');
-            // Clear all tree items - this destroys old DOM elements and their event listeners
-            // Event listeners on destroyed elements are automatically garbage collected, no removeEventListener needed
-            fileTree.innerHTML = '';
-
             const items = await getAllItems();
+
+            // Multiple async renders can overlap; only the newest render may replace the visible tree.
+            if (renderSequence !== fileTreeRenderSequence) {
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
             const rootItems = items.filter(item => !item.parentId).sort((a, b) => {
                 if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
                 return a.name.localeCompare(b.name);
@@ -6576,7 +6581,7 @@
                     div.addEventListener('contextmenu', (e) => showFileTreeContextMenu(e, item));
                 }
 
-                fileTree.appendChild(div);
+                fragment.appendChild(div);
 
                 if (item.type === 'folder') {
                     const children = items.filter(i => i.parentId === item.id).sort((a, b) => {
@@ -6588,6 +6593,7 @@
             };
 
             rootItems.forEach(item => renderItem(item));
+            fileTree.replaceChildren(fragment);
         }
 
         // Initialize root drop zone (called once during initialization)
