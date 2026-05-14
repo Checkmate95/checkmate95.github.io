@@ -7860,16 +7860,56 @@
             return filename.replace(/[\\/]+/g, '-').trim() || null;
         }
 
+        async function resolveShortcutInput(shortcut) {
+            if (shortcut.input !== '') {
+                return { text: shortcut.input, canRunAction: true };
+            }
+
+            if (!navigator.clipboard?.readText) {
+                return {
+                    text: '',
+                    canRunAction: false,
+                    message: 'Clipboard read is not available in this browser'
+                };
+            }
+
+            try {
+                const clipboardText = await navigator.clipboard.readText();
+                if (!clipboardText) {
+                    return {
+                        text: '',
+                        canRunAction: false,
+                        message: 'Clipboard is empty'
+                    };
+                }
+
+                return { text: clipboardText, canRunAction: true };
+            } catch (error) {
+                // Clipboard reads often require HTTPS and browser permission; keep the empty file visible for recovery.
+                return {
+                    text: '',
+                    canRunAction: false,
+                    message: `Unable to read clipboard: ${error.message}`
+                };
+            }
+        }
+
         async function runQueryShortcutIfPresent() {
             const shortcut = readQueryShortcut();
             if (!shortcut) return false;
 
-            const filename = normalizeShortcutFilename(shortcut.filename) || await getNextUntitledName();
-            await createTemporaryFile(filename, shortcut.input);
-
             const action = QUERY_ACTIONS[shortcut.action];
+            const filename = normalizeShortcutFilename(shortcut.filename) || await getNextUntitledName();
             if (!action) {
+                await createTemporaryFile(filename, shortcut.input);
                 updateStatus(`Unsupported shortcut action: ${shortcut.action}`);
+                return true;
+            }
+
+            const shortcutInput = await resolveShortcutInput(shortcut);
+            await createTemporaryFile(filename, shortcutInput.text);
+            if (!shortcutInput.canRunAction) {
+                updateStatus(shortcutInput.message);
                 return true;
             }
 
