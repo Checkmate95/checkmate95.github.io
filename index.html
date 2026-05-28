@@ -4256,27 +4256,52 @@
             }
         }
 
-        async function replaceCurrentFileWithBinaryContent(mimeType, bytes) {
-            if (!currentFileId) {
-                updateStatus('No file available');
-                return false;
-            }
+        function getPreviewableBinaryExtension(mimeType) {
+            const extensionByMimeType = {
+                'image/png': 'png',
+                'image/jpeg': 'jpg',
+                'image/gif': 'gif',
+                'image/svg+xml': 'svg',
+                'image/webp': 'webp',
+                'application/pdf': 'pdf'
+            };
 
-            await updateFile(currentFileId, {
-                content: '',
-                importMetadata: {
+            return extensionByMimeType[mimeType] || null;
+        }
+
+        function isPreviewableBinaryMimeType(mimeType) {
+            return Boolean(getPreviewableBinaryExtension(mimeType));
+        }
+
+        async function buildDecodedBinaryFileName(mimeType) {
+            const file = currentFileId ? await getItem(currentFileId) : null;
+            const extension = getPreviewableBinaryExtension(mimeType) || 'bin';
+            const sourceName = file?.name || await getNextUntitledName();
+            const dotIndex = sourceName.lastIndexOf('.');
+            const baseName = dotIndex > 0 ? sourceName.slice(0, dotIndex) : sourceName;
+
+            return `${baseName}-decoded.${extension}`;
+        }
+
+        async function createDecodedBinaryFile(mimeType, bytes) {
+            const fileName = await buildDecodedBinaryFileName(mimeType);
+            const summary = buildBinarySummaryContent(fileName, mimeType, bytes.length, [
+                'Source: Base64 decode'
+            ]);
+
+            // Decoding previewable bytes into a separate temporary file keeps the original Base64 text available.
+            await createImportedTempFile(
+                fileName,
+                summary,
+                `Decoded Base64 to ${fileName}`,
+                {
                     mode: 'binary',
                     mimeType,
                     size: bytes.length,
                     binaryBytes: Array.from(bytes)
                 }
-            });
+            );
 
-            clearDraft(currentFileId);
-            fileDirtyState.set(currentFileId, true);
-            isDirty = true;
-            await openFile(currentFileId, isSplitEditor ? activePane : 'left');
-            updateStatus('Decoded Base64 and replaced file with binary preview');
             return true;
         }
 
@@ -4348,7 +4373,7 @@
                 }
 
                 const mimeType = matches[1];
-                const base64Data = matches[2];
+                const base64Data = matches[2].replace(/\s/g, '');
 
                 // Decode base64 to binary string
                 const binaryString = atob(base64Data);
@@ -4359,12 +4384,13 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // Check if content is image or PDF (binary content)
-                const isBinaryContent = mimeType.startsWith('image/') || mimeType === 'application/pdf';
+                const detectedMimeType = detectMimeTypeFromBytes(bytes);
+                const previewMimeType = isPreviewableBinaryMimeType(detectedMimeType)
+                    ? detectedMimeType
+                    : mimeType;
 
-                if (isBinaryContent) {
-                    // Replace the current file with a binary-backed record so it opens in preview mode.
-                    return await replaceCurrentFileWithBinaryContent(mimeType, bytes);
+                if (isPreviewableBinaryMimeType(previewMimeType)) {
+                    return await createDecodedBinaryFile(previewMimeType, bytes);
                 } else {
                     // For text-based content, decode and replace in editor
                     const decodedText = new TextDecoder('utf-8').decode(bytes);
