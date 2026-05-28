@@ -593,9 +593,15 @@
         /* MergeView container styling */
         .cm-mergeView {
             display: flex;
+            flex: 1;
             height: 100%;
             width: 100%;
             overflow: hidden;
+        }
+
+        #editor-container.editor-split .editor-content>.cm-editor {
+            flex: 1;
+            min-width: 0;
         }
 
         .cm-mergeViewEditors {
@@ -960,13 +966,13 @@
                         </label>
                     </div>
                     <div class="comparison-view-selector" id="view-mode-container" style="display: none;">
-                        <label class="format-label" for="comparison-view-mode">View</label>
+                        <label class="format-label" for="comparison-view-mode">Compare</label>
                         <select id="comparison-view-mode">
-                            <option value="side-by-side">Side-by-side</option>
+                            <option value="none">None</option>
+                            <option value="side-by-side">Side by side</option>
                             <option value="inline">Inline</option>
                         </select>
                     </div>
-                    <button class="close-btn" id="close-comparison-btn" title="Close Comparison">✕</button>
                 </div>
                 <div class="comparison-filenames">
                     <span class="filename" id="filename-main"></span>
@@ -1930,6 +1936,7 @@
         let comparisonState = null; // Store content and options for current comparison
         let comparisonFormatEnabled = false; // Track whether formatted view is active
         let comparisonViewMode = 'side-by-side';
+        let splitCompareMode = 'none';
         let previewUrls = {
             left: null,
             right: null
@@ -2295,12 +2302,20 @@
 
         function closeEditor() {
             isSplitEditor = false;
+            isComparing = false;
+            splitCompareMode = 'none';
+            comparisonState = null;
             const editorContainer = document.getElementById('editor-container');
             editorContainer.classList.remove('editor-split');
+            editorContainer.classList.remove('split-view');
 
             revokePreviewUrl('left');
             revokePreviewUrl('right');
             destroyPaneEditors();
+            if (mergeView) {
+                mergeView.destroy();
+                mergeView = null;
+            }
             view = null;
 
             const container = document.getElementById('editor-content');
@@ -2320,6 +2335,80 @@
                 cursorInfo.textContent = 'No file open';
             }
             updateToolbarForActiveFile();
+        }
+
+        function updateSplitCompareControls() {
+            const editorContainer = document.getElementById('editor-container');
+            const viewContainer = document.getElementById('view-mode-container');
+            const viewSelect = document.getElementById('comparison-view-mode');
+            const formatToggle = document.getElementById('format-toggle-container');
+
+            editorContainer.classList.toggle('split-view', isSplitEditor);
+            if (viewContainer) viewContainer.style.display = isSplitEditor ? 'flex' : 'none';
+            if (viewSelect) viewSelect.value = splitCompareMode;
+            if (formatToggle && !isComparing) formatToggle.style.display = 'none';
+        }
+
+        async function renderSplitEditors() {
+            const editorContainer = document.getElementById('editor-container');
+            editorContainer.classList.add('editor-split');
+            editorContainer.classList.add('split-view');
+            ensureSplitLayout();
+
+            if (mergeView) {
+                mergeView.destroy();
+                mergeView = null;
+            }
+
+            if (leftFileId) {
+                const leftFile = await getItem(leftFileId);
+                const leftContent = draftContent.has(leftFileId)
+                    ? draftContent.get(leftFileId)
+                    : (leftFile?.content ?? '');
+                if (isBinaryFileRecord(leftFile)) {
+                    renderBinaryPreview('left', leftFile);
+                } else {
+                    const leftLang = leftFile ? detectLanguageFromFilename(leftFile.name) : leftLanguage;
+                    leftLanguage = leftLang;
+                    createPaneEditor('left', leftFileId, leftContent, leftLang);
+                }
+                updatePaneTitle('left', leftFile);
+                document.getElementById('filename-main').textContent = leftFile?.name || 'Left Pane';
+            } else {
+                createPaneEditor('left', null, '', 'plaintext', true);
+                updatePaneTitle('left', null);
+                document.getElementById('filename-main').textContent = 'Left Pane';
+            }
+
+            if (rightFileId) {
+                const rightFile = await getItem(rightFileId);
+                const rightContent = draftContent.has(rightFileId)
+                    ? draftContent.get(rightFileId)
+                    : (rightFile?.content ?? '');
+                if (isBinaryFileRecord(rightFile)) {
+                    renderBinaryPreview('right', rightFile);
+                } else {
+                    const rightLang = rightFile ? detectLanguageFromFilename(rightFile.name) : rightLanguage;
+                    rightLanguage = rightLang;
+                    createPaneEditor('right', rightFileId, rightContent, rightLang);
+                }
+                updatePaneTitle('right', rightFile);
+                document.getElementById('filename-compare').textContent = rightFile?.name || 'Right Pane';
+            } else {
+                createPaneEditor('right', null, '', 'plaintext', true);
+                updatePaneTitle('right', null);
+                document.getElementById('filename-compare').textContent = 'Right Pane';
+            }
+
+            isComparing = false;
+            comparisonState = null;
+            comparisonFormatEnabled = false;
+            const formatToggle = document.getElementById('format-toggle-container');
+            const formatCheckbox = document.getElementById('comparison-format-toggle');
+            if (formatToggle) formatToggle.style.display = 'none';
+            if (formatCheckbox) formatCheckbox.checked = false;
+            updateSplitCompareControls();
+            setActivePane(activePane || 'left');
         }
 
         function setActivePane(pane) {
@@ -2359,17 +2448,12 @@
         }
 
         async function setSplitView(enabled) {
-            if (enabled && isComparing) {
-                updateStatus('Close comparison view to enable split view');
-                return;
-            }
             if (enabled === isSplitEditor) return;
 
             const editorContainer = document.getElementById('editor-container');
             if (enabled) {
                 isSplitEditor = true;
-                editorContainer.classList.add('editor-split');
-                ensureSplitLayout();
+                splitCompareMode = 'none';
 
                 if (!leftFileId && currentFileId) {
                     leftFileId = currentFileId;
@@ -2379,47 +2463,20 @@
                     rightLanguage = leftLanguage;
                 }
 
-                if (leftFileId) {
-                    const leftFile = await getItem(leftFileId);
-                    const leftContent = draftContent.has(leftFileId)
-                        ? draftContent.get(leftFileId)
-                        : (leftFile?.content ?? '');
-                    if (isBinaryFileRecord(leftFile)) {
-                        renderBinaryPreview('left', leftFile);
-                    } else {
-                        const leftLang = leftFile ? detectLanguageFromFilename(leftFile.name) : leftLanguage;
-                        leftLanguage = leftLang;
-                        createPaneEditor('left', leftFileId, leftContent, leftLang);
-                    }
-                    updatePaneTitle('left', leftFile);
-                } else {
-                    createPaneEditor('left', null, '', 'plaintext', true);
-                    updatePaneTitle('left', null);
-                }
-
-                if (rightFileId) {
-                    const rightFile = await getItem(rightFileId);
-                    const rightContent = draftContent.has(rightFileId)
-                        ? draftContent.get(rightFileId)
-                        : (rightFile?.content ?? '');
-                    if (isBinaryFileRecord(rightFile)) {
-                        renderBinaryPreview('right', rightFile);
-                    } else {
-                        const rightLang = rightFile ? detectLanguageFromFilename(rightFile.name) : rightLanguage;
-                        rightLanguage = rightLang;
-                        createPaneEditor('right', rightFileId, rightContent, rightLang);
-                    }
-                    updatePaneTitle('right', rightFile);
-                } else {
-                    createPaneEditor('right', null, '', 'plaintext', true);
-                    updatePaneTitle('right', null);
-                }
-
-                setActivePane(activePane || 'left');
+                await renderSplitEditors();
             } else {
                 isSplitEditor = false;
+                isComparing = false;
+                splitCompareMode = 'none';
+                comparisonState = null;
                 editorContainer.classList.remove('editor-split');
+                editorContainer.classList.remove('split-view');
+                updateSplitCompareControls();
                 destroyPaneEditors();
+                if (mergeView) {
+                    mergeView.destroy();
+                    mergeView = null;
+                }
                 revokePreviewUrl('right');
                 if (currentFileId) {
                     await openFile(currentFileId, 'left');
@@ -2429,25 +2486,24 @@
             }
         }
 
-        function disableSplitViewForComparison() {
-            if (!isSplitEditor) return;
-            isSplitEditor = false;
-            const editorContainer = document.getElementById('editor-container');
-            editorContainer.classList.remove('editor-split');
-            revokePreviewUrl('left');
-            revokePreviewUrl('right');
-            destroyPaneEditors();
-        }
-
         async function closeSplitPane(pane) {
             if (!isSplitEditor) return;
             const remainingFileId = pane === 'left' ? rightFileId : leftFileId;
             const remainingLanguage = pane === 'left' ? rightLanguage : leftLanguage;
 
             isSplitEditor = false;
+            isComparing = false;
+            splitCompareMode = 'none';
+            comparisonState = null;
             const editorContainer = document.getElementById('editor-container');
             editorContainer.classList.remove('editor-split');
+            editorContainer.classList.remove('split-view');
             destroyPaneEditors();
+            if (mergeView) {
+                mergeView.destroy();
+                mergeView = null;
+            }
+            updateSplitCompareControls();
 
             leftFileId = remainingFileId;
             rightFileId = null;
@@ -2670,8 +2726,8 @@
             }
         }
 
-        // Get JSON path from cursor position
-        function getJsonPath(state) {
+        // Get JSON path from either the cursor or an explicit document position.
+        function getJsonPath(state, position = null) {
             try {
 
                 const tree = state.tree
@@ -2681,7 +2737,7 @@
                     return null;
                 }
 
-                const pos = state.selection.main.head;
+                const pos = typeof position === 'number' ? position : state.selection.main.head;
                 let node = tree.resolve(pos, 0);
                 const path = [];
 
@@ -2785,11 +2841,72 @@
             return result;
         }
 
-        // Extract JSON subtree based on current cursor position and path
-        async function extractJsonSubtree() {
+        function getJsonValueNodeAtPosition(state, pos) {
+            const tree = state?.tree;
+            if (!tree || tree.length === 0 || typeof pos !== 'number') {
+                return null;
+            }
+
+            let node = tree.resolve(pos, 0);
+            const valueNodeTypes = ['Object', 'Array', 'String', 'Number', 'True', 'False', 'Null'];
+
+            let checkNode = node;
+            while (checkNode && checkNode.name !== "Property" && checkNode.name !== "JsonText") {
+                // Array items do not have a Property wrapper, so select the item node directly.
+                if (checkNode.parent && checkNode.parent.name === "Array" && valueNodeTypes.includes(checkNode.name)) {
+                    return checkNode;
+                }
+                checkNode = checkNode.parent;
+            }
+
+            while (node && node.name !== "Property" && node.name !== "JsonText") {
+                node = node.parent;
+            }
+
+            if (node?.name === "Property") {
+                let child = node.firstChild;
+                while (child) {
+                    if (valueNodeTypes.includes(child.name)) {
+                        return child;
+                    }
+                    child = child.nextSibling;
+                }
+            }
+
+            return valueNodeTypes.includes(node?.name) ? node : null;
+        }
+
+        function selectJsonValueAtPosition(position = null) {
             if (!view) return false;
 
             const state = view.state;
+            const pos = typeof position === 'number' ? position : state.selection.main.head;
+            const valueNode = getJsonValueNodeAtPosition(state, pos);
+
+            if (!valueNode) {
+                updateStatus('Could not find JSON value at cursor');
+                return false;
+            }
+
+            const isStringValue = valueNode.name === 'String';
+            const selectionFrom = isStringValue ? valueNode.from + 1 : valueNode.from;
+            const selectionTo = isStringValue ? valueNode.to - 1 : valueNode.to;
+
+            view.dispatch({
+                selection: { anchor: selectionTo, head: selectionFrom },
+                scrollIntoView: true
+            });
+            view.focus();
+            updateStatus('Selected JSON value');
+            return true;
+        }
+
+        // Extract JSON subtree based on current cursor position and path
+        async function extractJsonSubtree(position = null) {
+            if (!view) return false;
+
+            const state = view.state;
+            const pos = typeof position === 'number' ? position : state.selection.main.head;
 
             // Only works for JSON files
             if (currentFileId) {
@@ -2804,7 +2921,7 @@
             }
 
             // Get the JSON path
-            const path = getJsonPath(state);
+            const path = getJsonPath(state, pos);
             if (!path) {
                 updateStatus('Could not determine JSON path');
                 return false;
@@ -2817,49 +2934,7 @@
                 return false;
             }
 
-            // Find the node at cursor
-            const pos = state.selection.main.head;
-            let node = tree.resolve(pos, 0);
-
-            // Check if cursor is on or inside an array element
-            let isArrayElement = false;
-            let checkNode = node;
-            while (checkNode && checkNode.name !== "Property" && checkNode.name !== "JsonText") {
-                if (checkNode.parent && checkNode.parent.name === "Array" &&
-                    checkNode.name !== "[" && checkNode.name !== "]") {
-                    isArrayElement = true;
-                    // Move node pointer to the actual array element (the value node)
-                    node = checkNode;
-                    break;
-                }
-                checkNode = checkNode.parent;
-            }
-
-            if (!isArrayElement) {
-                // Cursor is on property value - navigate up to Property node
-                while (node && node.name !== "Property") {
-                    node = node.parent;
-                    if (!node || node.name === "JsonText") {
-                        node = null;
-                        break;
-                    }
-                }
-
-                // Get the value child of the Property node (skip PropertyName)
-                if (node && node.name === "Property") {
-                    let child = node.firstChild;
-                    const valueNodeTypes = ['Object', 'Array', 'String', 'Number', 'True', 'False', 'Null'];
-
-                    while (child) {
-                        if (valueNodeTypes.includes(child.name)) {
-                            node = child;
-                            break;
-                        }
-                        child = child.nextSibling;
-                    }
-                }
-            }
-            // If isArrayElement is true, node already points to the array element - use it directly
+            const node = getJsonValueNodeAtPosition(state, pos);
 
             if (!node) {
                 updateStatus('Could not find JSON value at cursor');
@@ -5283,227 +5358,6 @@
             });
         }
 
-        // ===== Balance Inward/Outward Commands =====
-
-        // Helper function to find matching bracket
-        // Optimized: accepts optional cached document string to avoid repeated sliceString calls
-        function findMatchingBracket(doc, startPos, direction, docStr = null) {
-            const openBrackets = '([{';
-            const closeBrackets = ')]}';
-            const bracketPairs = { '(': ')', '[': ']', '{': '}', ')': '(', ']': '[', '}': '{' };
-
-            // Cache document string if not provided (for performance)
-            if (!docStr) {
-                docStr = doc.sliceString(0, doc.length);
-            }
-
-            // Get character at start position - use direct indexing (much faster)
-            const startChar = docStr[startPos];
-            if (!bracketPairs[startChar]) return -1;
-
-            const isOpen = openBrackets.includes(startChar);
-            const targetChar = bracketPairs[startChar];
-
-            let depth = 1;
-            let pos = startPos + direction;
-
-            // Use direct string indexing instead of repeated sliceString calls
-            while (pos >= 0 && pos < docStr.length) {
-                const char = docStr[pos];
-
-                if (char === startChar) {
-                    depth++;
-                } else if (char === targetChar) {
-                    depth--;
-                    if (depth === 0) {
-                        return pos;
-                    }
-                }
-
-                pos += direction;
-            }
-
-            return -1;
-        }
-
-        // Helper function to find matching quote
-        // Optimized: uses cached string and improved escape detection
-        function findMatchingQuote(doc, startPos, docStr = null) {
-            // Cache document string if not provided (for performance)
-            if (!docStr) {
-                docStr = doc.sliceString(0, doc.length);
-            }
-
-            const quoteChar = docStr[startPos];
-            if (quoteChar !== '"' && quoteChar !== "'") return -1;
-
-            // Helper to count consecutive backslashes before a position
-            function countBackslashes(str, pos) {
-                let count = 0;
-                let i = pos - 1;
-                while (i >= 0 && str[i] === '\\') {
-                    count++;
-                    i--;
-                }
-                return count;
-            }
-
-            // A quote is escaped if preceded by odd number of backslashes
-            function isEscaped(str, pos) {
-                return countBackslashes(str, pos) % 2 === 1;
-            }
-
-            // Count how many unescaped quotes of this type appear before startPos
-            // Optimized: use direct string indexing instead of sliceString
-            let quoteCount = 0;
-            for (let pos = 0; pos < startPos; pos++) {
-                if (docStr[pos] === quoteChar && !isEscaped(docStr, pos)) {
-                    quoteCount++;
-                }
-            }
-
-            // If even number of quotes before us, we're an opening quote (search forward)
-            // If odd number, we're a closing quote (search backward)
-            const isOpening = quoteCount % 2 === 0;
-            const direction = isOpening ? 1 : -1;
-            let pos = startPos + direction;
-
-            // Search for matching unescaped quote - use direct indexing
-            while (pos >= 0 && pos < docStr.length) {
-                if (docStr[pos] === quoteChar && !isEscaped(docStr, pos)) {
-                    return pos;
-                }
-                pos += direction;
-            }
-
-            return -1;
-        }
-
-        // Find the innermost delimiter pair (brackets or quotes) surrounding a position
-        // Optimized: caches document string, limits search radius for performance
-        function findInnerDelimiters(doc, pos, maxSearchRadius = 50000) {
-            let bestResult = null;
-            let smallestRange = Infinity;
-
-            // Cache document string once for performance
-            const docStr = doc.sliceString(0, doc.length);
-
-            // Limit search radius to prevent performance issues with very large documents
-            const searchStart = Math.max(0, pos - maxSearchRadius);
-
-            // Search backwards for opening brackets and quotes
-            for (let searchPos = pos - 1; searchPos >= searchStart; searchPos--) {
-                const char = docStr[searchPos];  // Use direct indexing
-
-                let closePos = -1;
-
-                if ('([{'.includes(char)) {
-                    // Found opening bracket, find its match
-                    // Pass cached string to avoid re-caching
-                    closePos = findMatchingBracket(doc, searchPos, 1, docStr);
-                } else if ('"\''.includes(char)) {
-                    // Found quote, find its match
-                    // Pass cached string to avoid re-caching
-                    closePos = findMatchingQuote(doc, searchPos, docStr);
-                }
-
-                if (closePos > pos) {
-                    // This delimiter pair contains our position
-                    const range = closePos - searchPos;
-                    if (range < smallestRange) {
-                        smallestRange = range;
-                        bestResult = { open: searchPos, close: closePos };
-                    }
-                }
-            }
-
-            return bestResult;
-        }
-
-        function balanceInward() {
-            if (!view) return false;
-
-            const state = view.state;
-            const pos = state.selection.main.head;
-            const doc = state.doc;
-
-            // Find innermost delimiter pair containing cursor
-            const delimiters = findInnerDelimiters(doc, pos);
-
-            if (delimiters) {
-                // Select content inside delimiters (excluding the delimiter characters)
-                const from = delimiters.open + 1;
-                const to = delimiters.close;
-
-                if (from < to) {
-                    view.dispatch({
-                        selection: { anchor: from, head: to }
-                    });
-                    view.focus();
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        function balanceOutward() {
-            if (!view) return false;
-
-            const state = view.state;
-            const selection = state.selection.main;
-            const doc = state.doc;
-
-            // Get current selection range
-            const currentFrom = Math.min(selection.anchor, selection.head);
-            const currentTo = Math.max(selection.anchor, selection.head);
-
-            // Search for delimiter pair that contains current selection but is larger
-            let bestResult = null;
-            let smallestRange = Infinity;
-
-            // Cache document string once for performance (optimized)
-            const docStr = doc.sliceString(0, doc.length);
-
-            // Limit search radius to prevent performance issues (default 50,000 chars)
-            const maxSearchRadius = 50000;
-            const searchStart = Math.max(0, currentFrom - maxSearchRadius);
-
-            for (let searchPos = currentFrom - 1; searchPos >= searchStart; searchPos--) {
-                const char = docStr[searchPos];  // Use direct indexing (optimized)
-
-                let closePos = -1;
-
-                if ('([{'.includes(char)) {
-                    // Pass cached string to avoid re-caching (optimized)
-                    closePos = findMatchingBracket(doc, searchPos, 1, docStr);
-                } else if ('"\''.includes(char)) {
-                    // Pass cached string to avoid re-caching (optimized)
-                    closePos = findMatchingQuote(doc, searchPos, docStr);
-                }
-
-                if (closePos > currentTo) {
-                    // This delimiter pair contains our current selection
-                    const range = closePos - searchPos;
-                    if (range < smallestRange) {
-                        smallestRange = range;
-                        bestResult = { open: searchPos, close: closePos };
-                    }
-                }
-            }
-
-            if (bestResult) {
-                // Select the outer delimiter pair (including delimiters)
-                view.dispatch({
-                    selection: { anchor: bestResult.open, head: bestResult.close + 1 }
-                });
-                view.focus();
-                return true;
-            }
-
-            return false;
-        }
-
         // ===== Context Menu =====
         function createContextMenu(x, y, options) {
             // Remove any existing context menu
@@ -5585,16 +5439,12 @@
             let state = view?.state;
             let selection = state?.selection.main;
             let hasSelection = selection && selection.anchor !== selection.head;
+            let contextPosition = selection?.head ?? null;
 
-            // If no selection, move cursor to right-click position
-            if (!hasSelection && view && typeof view.posAtCoords === 'function') {
+            if (view && typeof view.posAtCoords === 'function') {
                 const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
                 if (typeof pos === 'number') {
-                    view.dispatch({ selection: { anchor: pos, head: pos } });
-                    view.focus();
-                    state = view.state;
-                    selection = state?.selection.main;
-                    hasSelection = selection && selection.anchor !== selection.head;
+                    contextPosition = pos;
                 }
             }
 
@@ -5605,45 +5455,12 @@
                 if (file && detectLanguageFromFilename(file.name) === 'json') {
                     isJsonFile = true;
                     if (state) {
-                        jsonPath = getJsonPath(state);
+                        jsonPath = getJsonPath(state, contextPosition);
                     }
                 }
             }
 
-            const options = [
-                {
-                    label: 'Balance Inward',
-                    disabled: !view,
-                    action: () => {
-                        const success = balanceInward();
-                        if (success) {
-                            updateStatus('Selected inner content');
-                        } else {
-                            updateStatus('No inner selection found');
-                        }
-                    }
-                },
-                {
-                    label: 'Balance Outward',
-                    disabled: !view,
-                    action: () => {
-                        const success = balanceOutward();
-                        if (success) {
-                            updateStatus('Expanded selection outward');
-                        } else {
-                            updateStatus('No outer selection found');
-                        }
-                    }
-                },
-                { type: 'separator' },
-                {
-                    label: 'Extract JSON Subtree',
-                    disabled: !view || !currentFileId,
-                    action: async () => {
-                        await extractJsonSubtree();
-                    }
-                }
-            ];
+            const options = [];
 
             if (hasSelection) {
                 const selectedText = state.doc.sliceString(
@@ -5677,15 +5494,33 @@
             if (isJsonFile) {
                 const separatorIndex = options.findIndex(option => option.type === 'separator');
                 const insertIndex = separatorIndex === -1 ? options.length : separatorIndex;
-                options.splice(insertIndex, 0, {
-                    label: 'Copy JSON Path',
-                    disabled: !jsonPath,
-                    action: async () => {
-                        if (jsonPath) {
-                            await copyToClipboard(jsonPath, 'JSON path');
+                options.splice(
+                    insertIndex,
+                    0,
+                    {
+                        label: 'Select Value',
+                        disabled: !state,
+                        action: () => {
+                            selectJsonValueAtPosition(contextPosition);
                         }
+                    },
+                    {
+                        label: 'Copy JSON Path',
+                        disabled: !jsonPath,
+                        action: async () => {
+                            if (jsonPath) {
+                                await copyToClipboard(jsonPath, 'JSON path');
+                            }
+                        }
+                    },
+                    {
+                    label: 'Extract JSON Subtree',
+                    disabled: !view || !currentFileId,
+                    action: async () => {
+                        await extractJsonSubtree(contextPosition);
                     }
-                });
+                    }
+                );
             }
 
             createContextMenu(event.clientX, event.clientY, options);
@@ -5693,6 +5528,11 @@
 
         // ===== File Operations =====
         async function openFileInPane(id, pane) {
+            if (isSplitEditor && isComparing) {
+                splitCompareMode = 'none';
+                await renderSplitEditors();
+            }
+
             const currentPaneFileId = pane === 'left' ? leftFileId : rightFileId;
             if (currentPaneFileId && currentPaneFileId !== id) {
                 saveDraftContent(currentPaneFileId);
@@ -5720,6 +5560,10 @@
                 }
             }
             updatePaneTitle(pane, file);
+            if (isSplitEditor) {
+                document.getElementById(pane === 'left' ? 'filename-main' : 'filename-compare').textContent = file.name;
+                updateSplitCompareControls();
+            }
 
             setActivePane(pane);
             await persistLastOpenedFile(currentFileId);
@@ -6076,6 +5920,106 @@
 
         // ===== File Comparison Functions =====
 
+        async function buildComparisonStateFromSplit() {
+            if (!leftFileId || !rightFileId) {
+                updateStatus('Open files in both split panes before comparing');
+                return false;
+            }
+
+            const [leftFile, rightFile] = await Promise.all([
+                getItem(leftFileId),
+                getItem(rightFileId)
+            ]);
+
+            if (!leftFile || !rightFile) {
+                updateStatus('Error loading files for comparison');
+                return false;
+            }
+
+            if (isBinaryFileRecord(leftFile) || isBinaryFileRecord(rightFile)) {
+                updateStatus('Comparison only supports text files');
+                return false;
+            }
+
+            const leftExt = leftFile.name.includes('.') ? leftFile.name.split('.').pop() : '';
+            const rightExt = rightFile.name.includes('.') ? rightFile.name.split('.').pop() : '';
+            const leftFileExt = leftExt ? '.' + leftExt : '';
+            const rightFileExt = rightExt ? '.' + rightExt : '';
+            const leftFormat = leftFileExt ? detectFormatFromExtension(leftFileExt) : 'none';
+            const rightFormat = rightFileExt ? detectFormatFromExtension(rightFileExt) : 'none';
+            const canFormat = leftFormat !== 'none' && leftFormat === rightFormat;
+
+            comparisonState = {
+                type: 'split-file-to-file',
+                canFormat,
+                formatType: canFormat ? leftFormat : 'none',
+                left: {
+                    id: leftFile.id,
+                    name: leftFile.name,
+                    content: draftContent.has(leftFile.id) ? draftContent.get(leftFile.id) : leftFile.content || '',
+                    lang: leftExt ? (extensionMap[leftExt] || 'plaintext') : 'plaintext'
+                },
+                right: {
+                    id: rightFile.id,
+                    name: rightFile.name,
+                    content: draftContent.has(rightFile.id) ? draftContent.get(rightFile.id) : rightFile.content || '',
+                    lang: rightExt ? (extensionMap[rightExt] || 'plaintext') : 'plaintext'
+                }
+            };
+
+            document.getElementById('filename-main').textContent = leftFile.name;
+            document.getElementById('filename-compare').textContent = rightFile.name;
+
+            const toggleContainer = document.getElementById('format-toggle-container');
+            const toggle = document.getElementById('comparison-format-toggle');
+            const toggleText = document.getElementById('comparison-format-text');
+            if (toggle) toggle.checked = comparisonFormatEnabled && canFormat;
+            if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
+            if (toggleText) {
+                toggleText.textContent = canFormat ? `Format as ${leftFormat.toUpperCase()}` : 'Format view';
+            }
+
+            return true;
+        }
+
+        async function setSplitCompareMode(mode) {
+            splitCompareMode = mode === 'inline' || mode === 'side-by-side' ? mode : 'none';
+            const viewSelect = document.getElementById('comparison-view-mode');
+            if (viewSelect) viewSelect.value = splitCompareMode;
+
+            if (!isSplitEditor) {
+                updateSplitCompareControls();
+                return false;
+            }
+
+            if (splitCompareMode === 'none') {
+                await renderSplitEditors();
+                updateStatus('Split comparison disabled');
+                return true;
+            }
+
+            comparisonViewMode = splitCompareMode;
+            comparisonFormatEnabled = document.getElementById('comparison-format-toggle')?.checked ?? false;
+            const ready = await buildComparisonStateFromSplit();
+            if (!ready) {
+                splitCompareMode = 'none';
+                await renderSplitEditors();
+                return false;
+            }
+
+            isComparing = true;
+            const editorContainer = document.getElementById('editor-container');
+            editorContainer.classList.add('editor-split');
+            editorContainer.classList.add('split-view');
+            updateSplitCompareControls();
+
+            const success = renderComparisonView(comparisonFormatEnabled);
+            if (!success) {
+                updateStatus('Error rendering comparison');
+            }
+            return success;
+        }
+
         function renderComparisonView(applyFormat = false) {
             if (!comparisonState) return false;
 
@@ -6140,9 +6084,6 @@
             const mainContainer = document.getElementById('editor-content');
             mainContainer.innerHTML = '';
 
-            if (view) {
-                view.destroy();
-            }
             destroyPaneEditors();
             view = null;
 
@@ -6202,216 +6143,6 @@
             return comparisonFormatEnabled || !shouldFormat;
         }
 
-        async function compareFileWithActive(fileItem) {
-            if (!currentFileId) {
-                updateStatus('Open a file before comparing');
-                return;
-            }
-
-            if (fileItem.id === currentFileId) {
-                updateStatus('Choose a different file to compare');
-                return;
-            }
-
-            disableSplitViewForComparison();
-
-            const [activeFile, targetFile] = await Promise.all([
-                getItem(currentFileId),
-                getItem(fileItem.id)
-            ]);
-
-            if (!activeFile || !targetFile) {
-                updateStatus('Error loading files for comparison');
-                return;
-            }
-
-            comparisonFormatEnabled = false;
-
-            isComparing = true;
-            const editorContainer = document.getElementById('editor-container');
-            editorContainer.classList.add("split-view");
-
-            document.getElementById('filename-main').textContent = activeFile.name;
-            document.getElementById('filename-compare').textContent = targetFile.name;
-
-            const ext1 = activeFile.name.includes('.') ? activeFile.name.split('.').pop() : '';
-            const fileExt1 = ext1 ? '.' + ext1 : '';
-            const lang1 = ext1 ? (extensionMap[ext1] || 'plaintext') : 'plaintext';
-
-            const ext2 = targetFile.name.includes('.') ? targetFile.name.split('.').pop() : '';
-            const fileExt2 = ext2 ? '.' + ext2 : '';
-            const lang2 = ext2 ? (extensionMap[ext2] || 'plaintext') : 'plaintext';
-
-            const leftFormat = fileExt1 ? detectFormatFromExtension(fileExt1) : 'none';
-            const rightFormat = fileExt2 ? detectFormatFromExtension(fileExt2) : 'none';
-            const canFormat = leftFormat !== 'none' && leftFormat === rightFormat;
-
-            const baseLeftContent = draftContent.has(activeFile.id) ? draftContent.get(activeFile.id) : activeFile.content || '';
-            const baseRightContent = draftContent.has(targetFile.id) ? draftContent.get(targetFile.id) : targetFile.content || '';
-
-            comparisonState = {
-                type: 'file-to-file',
-                canFormat,
-                formatType: canFormat ? leftFormat : 'none',
-                left: {
-                    id: activeFile.id,
-                    name: activeFile.name,
-                    content: baseLeftContent,
-                    lang: lang1
-                },
-                right: {
-                    id: targetFile.id,
-                    name: targetFile.name,
-                    content: baseRightContent,
-                    lang: lang2
-                }
-            };
-
-            const toggleContainer = document.getElementById('format-toggle-container');
-            const toggle = document.getElementById('comparison-format-toggle');
-            const toggleText = document.getElementById('comparison-format-text');
-            const viewContainer = document.getElementById('view-mode-container');
-            const viewSelect = document.getElementById('comparison-view-mode');
-
-            if (toggle) toggle.checked = false;
-            if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
-            if (toggleText) {
-                toggleText.textContent = canFormat ? `Format as ${leftFormat.toUpperCase()}` : 'Format view';
-            }
-            if (viewContainer) viewContainer.style.display = 'flex';
-            if (viewSelect) viewSelect.value = comparisonViewMode;
-
-            document.getElementById('close-comparison-btn').style.display = 'block';
-
-            const success = renderComparisonView(false);
-            if (!success) {
-                updateStatus('Error rendering comparison');
-            }
-        }
-
-        function closeComparison() {
-            if (!isComparing) return;
-
-            isComparing = false;
-
-            // Hide format toggle and reset format
-            const formatToggle = document.getElementById('format-toggle-container');
-            const formatCheckbox = document.getElementById('comparison-format-toggle');
-            if (formatToggle) formatToggle.style.display = 'none';
-            if (formatCheckbox) formatCheckbox.checked = false;
-            comparisonFormatEnabled = false;
-            const viewContainer = document.getElementById('view-mode-container');
-            if (viewContainer) viewContainer.style.display = 'none';
-
-            // Reset comparison state tracking
-            comparisonState = null;
-
-            // Destroy MergeView
-            if (mergeView) {
-                mergeView.destroy();
-                mergeView = null;
-            }
-
-            // Hide split view
-            const editorContainer = document.getElementById('editor-container');
-            editorContainer.classList.remove("split-view")
-
-
-            // Clear container contents
-            const mainContainer = document.getElementById('editor-content');
-            mainContainer.innerHTML = '';
-
-            // Restore current file if any
-            if (currentFileId) {
-                openFile(currentFileId);
-            } else {
-                // Create empty editor
-                createSingleEditor('', 'plaintext', currentTheme, false, null);
-            }
-
-            updateStatus('Closed comparison view');
-        }
-
-        async function compareFileWithClipboard(fileItem) {
-            try {
-                const clipboardText = await navigator.clipboard.readText();
-
-                if (!clipboardText || clipboardText.trim() === '') {
-                    updateStatus('Clipboard is empty');
-                    return;
-                }
-
-                disableSplitViewForComparison();
-
-                const fileData = await getItem(fileItem.id);
-                if (!fileData) {
-                    updateStatus('Error loading file');
-                    return;
-                }
-
-                comparisonFormatEnabled = false;
-
-                isComparing = true;
-                const editorContainer = document.getElementById('editor-container');
-                editorContainer.classList.add("split-view");
-
-                document.getElementById('filename-main').textContent = fileData.name;
-                document.getElementById('filename-compare').textContent = 'Clipboard Content';
-
-                const ext = fileData.name.includes('.') ? fileData.name.split('.').pop() : '';
-                const fileExt = ext ? '.' + ext : '';
-                const lang = ext ? (extensionMap[ext] || 'plaintext') : 'plaintext';
-
-                const formatType = fileExt ? detectFormatFromExtension(fileExt) : 'none';
-                const canFormat = formatType !== 'none';
-
-                comparisonState = {
-                    type: 'file-to-clipboard',
-                    canFormat,
-                    formatType: canFormat ? formatType : 'none',
-                    left: {
-                        id: fileData.id,
-                        name: fileData.name,
-                        content: draftContent.has(fileData.id) ? draftContent.get(fileData.id) : fileData.content || '',
-                        lang: lang
-                    },
-                    right: {
-                        name: 'Clipboard Content',
-                        content: clipboardText,
-                        lang: lang
-                    }
-                };
-
-                const toggleContainer = document.getElementById('format-toggle-container');
-                const toggle = document.getElementById('comparison-format-toggle');
-                const toggleText = document.getElementById('comparison-format-text');
-                const viewContainer = document.getElementById('view-mode-container');
-                const viewSelect = document.getElementById('comparison-view-mode');
-
-                if (toggle) toggle.checked = false;
-                if (toggleContainer) toggleContainer.style.display = canFormat ? 'flex' : 'none';
-                if (toggleText) {
-                    toggleText.textContent = canFormat ? `Format as ${formatType.toUpperCase()}` : 'Format view';
-                }
-                if (viewContainer) viewContainer.style.display = 'flex';
-                if (viewSelect) viewSelect.value = comparisonViewMode;
-
-                document.getElementById('close-comparison-btn').style.display = 'block';
-
-                const success = renderComparisonView(false);
-                if (!success) {
-                    updateStatus('Error rendering comparison');
-                }
-            } catch (error) {
-                if (error.name === 'NotAllowedError') {
-                    updateStatus('Clipboard access denied. Please grant permission.');
-                } else {
-                    updateStatus(`Error: ${error.message}`);
-                }
-                console.error('Clipboard comparison error:', error);
-            }
-        }
-
         function showFileTreeContextMenu(event, fileItem) {
             event.preventDefault();
             event.stopPropagation();
@@ -6456,25 +6187,6 @@
                     await duplicateFileItem(fileItem);
                 }
             });
-
-            const isActiveFile = fileItem.id === currentFileId;
-            options.push(
-                { type: 'separator' },
-                ...(isActiveFile ? [] : [{
-                    label: 'Compare with Active File',
-                    disabled: false,
-                    action: async () => {
-                        await compareFileWithActive(fileItem);
-                    }
-                }]),
-                {
-                    label: 'Compare with Clipboard',
-                    disabled: false,
-                    action: async () => {
-                        await compareFileWithClipboard(fileItem);
-                    }
-                }
-            );
 
             createContextMenu(event.clientX, event.clientY, options);
         }
@@ -6943,8 +6655,6 @@
             });
         });
 
-        document.getElementById('close-comparison-btn').addEventListener('click', closeComparison);
-
         function readFileAsText(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -7195,6 +6905,17 @@
             );
         }
 
+        async function importExternalFile(file) {
+            const buffer = await readFileAsArrayBuffer(file);
+            const mimeType = resolveImportedBinaryMimeType(file.type, new Uint8Array(buffer));
+
+            if (shouldImportAsBinary(mimeType)) {
+                await importFileAsBinarySummary(file, buffer);
+            } else {
+                await importFileAsText(file);
+            }
+        }
+
         async function handleImportSelection(event) {
             const input = event.target;
             const file = input.files[0];
@@ -7204,20 +6925,51 @@
             }
 
             try {
-                const buffer = await readFileAsArrayBuffer(file);
-                const mimeType = resolveImportedBinaryMimeType(file.type, new Uint8Array(buffer));
-
-                if (shouldImportAsBinary(mimeType)) {
-                    await importFileAsBinarySummary(file, buffer);
-                } else {
-                    await importFileAsText(file);
-                }
+                await importExternalFile(file);
             } catch (error) {
                 updateStatus(error.message || `Failed to import ${file.name}`);
             } finally {
                 // Clear the input so selecting the same file again still triggers a change event.
                 input.value = '';
             }
+        }
+
+        function hasExternalDraggedFiles(dataTransfer) {
+            return Array.from(dataTransfer?.types || []).includes('Files');
+        }
+
+        function initApplicationFileDropZone() {
+            window.addEventListener('dragover', (event) => {
+                if (!hasExternalDraggedFiles(event.dataTransfer)) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+            });
+
+            window.addEventListener('drop', async (event) => {
+                const files = Array.from(event.dataTransfer?.files || []);
+                if (files.length === 0) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                for (const file of files) {
+                    try {
+                        await importExternalFile(file);
+                    } catch (error) {
+                        updateStatus(error.message || `Failed to import ${file.name}`);
+                        return;
+                    }
+                }
+
+                if (files.length > 1) {
+                    updateStatus(`Imported ${files.length} files`);
+                }
+            });
         }
 
         document.getElementById('import-file-btn').addEventListener('click', () => {
@@ -7240,15 +6992,11 @@
             }
         });
 
-        document.getElementById('comparison-view-mode').addEventListener('change', (e) => {
-            if (!isComparing || !comparisonState) {
+        document.getElementById('comparison-view-mode').addEventListener('change', async (e) => {
+            if (!isSplitEditor) {
                 return;
             }
-            comparisonViewMode = e.target.value === 'inline' ? 'inline' : 'side-by-side';
-            const success = renderComparisonView(comparisonFormatEnabled);
-            if (!success) {
-                updateStatus('Error switching view mode');
-            }
+            await setSplitCompareMode(e.target.value);
         });
 
         // Dropdown menu for case conversion
@@ -7977,6 +7725,7 @@
                 didOpenOrCreate = true;
             }
             initFileTreeDropZone();
+            initApplicationFileDropZone();
             if (!handledShortcut && !didOpenOrCreate) {
                 updateStatus('Ready');
             }
@@ -7984,16 +7733,6 @@
             // Attach context menu to editor container
             const editorContainer = document.getElementById('editor-container');
             editorContainer.addEventListener('contextmenu', showEditorContextMenu);
-
-            // Warn before leaving page if there are unsaved changes
-            window.addEventListener('beforeunload', (e) => {
-                // Check if current file OR any other files have unsaved changes
-                if (isDirty || Array.from(fileDirtyState.values()).some(i => i)) {
-                    e.preventDefault();
-                    e.returnValue = ''; // Required for Chrome
-                    return ''; // Required for some browsers
-                }
-            });
         }
 
         init();
