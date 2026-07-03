@@ -877,6 +877,7 @@
             <div class="dropdown-content" id="escape-unescape-menu">
                 <button id="escape-json">Escape JSON</button>
                 <button id="unescape-json">Unescape JSON</button>
+                <button id="json-log-to-curl">JSON Log to curl</button>
                 <div class="menu-separator"></div>
                 <button id="escape-html">Escape HTML</button>
                 <button id="unescape-html">Unescape HTML</button>
@@ -4173,6 +4174,129 @@
             return str.replace(/\\([rntf"'\\])/g, (match, ch) => map[ch] ?? match);
         }
 
+        function parseJsonWithLogEscapes(text) {
+            const trimmed = text.trim();
+            const attempts = [trimmed];
+
+            if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+                try {
+                    const decoded = JSON.parse(trimmed);
+                    if (typeof decoded === 'string') {
+                        attempts.push(decoded.trim());
+                    }
+                } catch (e) {
+                    // Keep trying the generic one-layer unescape below.
+                }
+            }
+
+            attempts.push(unescapeJson(trimmed));
+
+            let lastError = null;
+            for (const candidate of attempts) {
+                try {
+                    const parsed = JSON.parse(candidate);
+                    if (typeof parsed === 'string') {
+                        const nested = parsed.trim();
+                        if ((nested.startsWith('{') && nested.endsWith('}')) || (nested.startsWith('[') && nested.endsWith(']'))) {
+                            try {
+                                return JSON.parse(nested);
+                            } catch (e) {
+                                lastError = e;
+                            }
+                        }
+                    }
+
+                    return parsed;
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+
+            throw new Error(`Invalid JSON log content: ${lastError?.message || 'unable to parse'}`);
+        }
+
+        function formatRequestDataForCurl(requestData) {
+            if (requestData === undefined || requestData === null || requestData === '') {
+                return null;
+            }
+
+            if (typeof requestData === 'object') {
+                return JSON.stringify(requestData, null, 2);
+            }
+
+            return String(requestData);
+        }
+
+        function shellSingleQuote(value) {
+            return `'${String(value).replace(/'/g, `'\\''`)}'`;
+        }
+
+        function validateJsonLogForCurl(log) {
+            if (!log || typeof log !== 'object' || Array.isArray(log)) {
+                throw new Error('JSON log must be an object');
+            }
+
+            if (!log.httpRequestMethod) {
+                throw new Error('Missing httpRequestMethod');
+            }
+
+            if (!log.serviceName) {
+                throw new Error('Missing serviceName');
+            }
+
+            if (log.httpRequestHeader !== undefined && (typeof log.httpRequestHeader !== 'object' || Array.isArray(log.httpRequestHeader) || log.httpRequestHeader === null)) {
+                throw new Error('httpRequestHeader must be an object');
+            }
+        }
+
+        function jsonLogToCurl(text) {
+            const log = parseJsonWithLogEscapes(text);
+            validateJsonLogForCurl(log);
+
+            const lines = [
+                `curl -X ${String(log.httpRequestMethod).toUpperCase()} ${shellSingleQuote(log.serviceName)}`
+            ];
+
+            Object.entries(log.httpRequestHeader || {}).forEach(([name, value]) => {
+                lines.push(`  -H ${shellSingleQuote(`${name}: ${value}`)}`);
+            });
+
+            const body = formatRequestDataForCurl(log.requestData);
+            if (body !== null) {
+                lines.push(`  --data-raw ${shellSingleQuote(body)}`);
+            }
+
+            return lines.map((line, index) => index < lines.length - 1 ? `${line} \\` : line).join('\n');
+        }
+
+        function jsonLogToCurlNewTab() {
+            const text = getSelectedOrAllText();
+
+            if (text === null) {
+                updateStatus('No editor available');
+                return false;
+            }
+
+            if (!text.trim()) {
+                updateStatus('No JSON log to convert');
+                return false;
+            }
+
+            try {
+                const curl = jsonLogToCurl(text);
+                const opened = openResultInNewTab('curl Command', curl);
+
+                if (opened) {
+                    updateStatus('curl command opened in new tab');
+                }
+
+                return opened;
+            } catch (e) {
+                updateStatus(`Failed to convert JSON log to curl: ${e.message}`);
+                return false;
+            }
+        }
+
         function encodeURL(str) {
             return encodeURIComponent(str);
         }
@@ -7060,6 +7184,11 @@
             escapeUnescapeMenu.classList.remove('show');
         });
 
+        document.getElementById('json-log-to-curl').addEventListener('click', () => {
+            jsonLogToCurlNewTab();
+            escapeUnescapeMenu.classList.remove('show');
+        });
+
         document.getElementById('encode-url').addEventListener('click', () => {
             escapeToNewTab(encodeURL, 'URL (encoded)');
             escapeUnescapeMenu.classList.remove('show');
@@ -7597,6 +7726,7 @@
             lowerCase: () => transformText(toLowerCase, 'lowercase'),
             escapeJson: () => escapeToNewTab(escapeJson, 'JSON (escaped)'),
             unescapeJson: () => unescapeToNewFile(unescapeJson, 'JSON (unescaped)', 'json'),
+            curl: () => jsonLogToCurlNewTab(),
             encodeUrl: () => escapeToNewTab(encodeURL, 'URL (encoded)'),
             decodeUrl: () => unescapeToNewFile(decodeURL, 'URL (decoded)', 'url'),
             encodeFullUrl: () => escapeToNewTab(encodeFullURL, 'URL (full URI encoded)'),
