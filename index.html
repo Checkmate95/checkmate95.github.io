@@ -817,6 +817,11 @@
             font-size: 13px;
         }
 
+        .modal-footer button:disabled {
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
         .modal-footer .btn-primary {
             background: #0e639c;
             color: white;
@@ -824,6 +829,15 @@
 
         .modal-footer .btn-primary:hover {
             background: #1177bb;
+        }
+
+        .modal-footer .btn-primary:disabled {
+            background: #3c3c3c;
+            color: #8a8a8a;
+        }
+
+        .modal-footer .btn-primary:disabled:hover {
+            background: #3c3c3c;
         }
 
         .modal-footer .btn-secondary {
@@ -1015,6 +1029,18 @@
                 <h2>JWT Settings</h2>
             </div>
             <div class="modal-body">
+                <div id="jwt-key-store-section" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">JWT Key:</label>
+                    <select id="jwt-keypair-select"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
+                        <option value="">Create new key</option>
+                    </select>
+                    <label style="display: block; margin-bottom: 5px;">Key Name:</label>
+                    <input type="text" id="jwt-keypair-name"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;"
+                        placeholder="Example: Partner RS256 dev key" />
+                </div>
+
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">Algorithm:</label>
                     <select id="jwt-algorithm"
@@ -1061,7 +1087,7 @@
                         </div>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS8) - Paste or
+                        <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS#8 or RSA PKCS#1) - Paste or
                             Generate:</label>
                         <textarea id="jwt-private-key"
                             style="width: 100%; height: 120px; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
@@ -1104,8 +1130,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn-danger" id="jwt-delete-keypair-btn">Delete Key</button>
                 <button class="btn-secondary" id="jwt-settings-cancel">Cancel</button>
-                <button class="btn-primary" id="jwt-settings-save">Save</button>
+                <button class="btn-primary" id="jwt-settings-save" disabled>Save</button>
             </div>
         </div>
     </div>
@@ -1117,6 +1144,18 @@
                 <h2>JWE Settings</h2>
             </div>
             <div class="modal-body">
+                <div id="jwe-key-store-section" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">JWE Key:</label>
+                    <select id="jwe-keypair-select"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
+                        <option value="">Create new key</option>
+                    </select>
+                    <label style="display: block; margin-bottom: 5px;">Key Name:</label>
+                    <input type="text" id="jwe-keypair-name"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;"
+                        placeholder="Example: Partner ECDH-ES dev key" />
+                </div>
+
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">JWE Algorithm:</label>
                     <select id="jwe-algorithm"
@@ -1185,8 +1224,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn-danger" id="jwe-delete-keypair-btn">Delete Key</button>
                 <button class="btn-secondary" id="jwe-settings-cancel">Cancel</button>
-                <button class="btn-primary" id="jwe-settings-save">Save</button>
+                <button class="btn-primary" id="jwe-settings-save" disabled>Save</button>
             </div>
         </div>
     </div>
@@ -1355,7 +1395,7 @@
 
         // ===== IndexedDB Setup =====
         const DB_NAME = 'CodeEditorDB';
-        const DB_VERSION = 1;
+        const DB_VERSION = 2;
         let db;
 
         function initDB() {
@@ -1383,6 +1423,14 @@
 
                     if (!db.objectStoreNames.contains('jweSettings')) {
                         db.createObjectStore('jweSettings', { keyPath: 'id' });
+                    }
+
+                    if (!db.objectStoreNames.contains('jwtKeyPairs')) {
+                        db.createObjectStore('jwtKeyPairs', { keyPath: 'id' });
+                    }
+
+                    if (!db.objectStoreNames.contains('jweKeyPairs')) {
+                        db.createObjectStore('jweKeyPairs', { keyPath: 'id' });
                     }
 
                     if (!db.objectStoreNames.contains('generatorSettings')) {
@@ -2987,6 +3035,7 @@
             secretKey: '',
             publicKeyPem: '',
             privateKeyPem: '',
+            activeKeyPairId: '',
             autoIat: true,
             autoExp: false,
             expDuration: 1,
@@ -2999,20 +3048,25 @@
             secretKey: '',
             publicKeyPem: '',
             privateKeyPem: '',
+            activeKeyPairId: '',
             autoIat: true,
             autoExp: false,
             expDuration: 1,
             expUnit: 'hours'
         };
 
+        let jwtKeyPairs = [];
+        let jweKeyPairs = [];
+
         async function initJWTSettings() {
             const settings = await loadJWTSettings();
             if (settings) {
-                jwtSettings = settings;
+                jwtSettings = { ...jwtSettings, ...settings };
             } else {
                 // Initialize with default settings
                 await saveJWTSettings(jwtSettings);
             }
+            jwtKeyPairs = await loadKeyPairs('jwtKeyPairs');
             updateJWTSettingsUI();
         }
 
@@ -3043,41 +3097,281 @@
             });
         }
 
+        function loadKeyPairs(storeName) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([storeName], 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const keyPairs = request.result || [];
+                    keyPairs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    resolve(keyPairs);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function saveKeyPair(storeName, keyPair) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.put(keyPair);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function deleteKeyPair(storeName, id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function createKeyPairRecord({ id, name, algorithm, secretKey, publicKeyPem, privateKeyPem, autoIat, autoExp, expDuration, expUnit, createdAt }) {
+            const timestamp = new Date().toISOString();
+            return {
+                id: id || crypto.randomUUID(),
+                name,
+                algorithm,
+                secretKey: secretKey || '',
+                publicKeyPem: publicKeyPem || '',
+                privateKeyPem: privateKeyPem || '',
+                autoIat: autoIat !== undefined ? autoIat : true,
+                autoExp: autoExp !== undefined ? autoExp : false,
+                expDuration: expDuration || 1,
+                expUnit: expUnit || 'hours',
+                createdAt: createdAt || timestamp,
+                updatedAt: timestamp
+            };
+        }
+
+        function renderKeyPairOptions(selectElement, keyPairs, selectedKeyPairId) {
+            selectElement.innerHTML = '';
+
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = 'Create new key';
+            selectElement.appendChild(emptyOption);
+
+            keyPairs.forEach((keyPair) => {
+                const option = document.createElement('option');
+                option.value = keyPair.id;
+                option.textContent = `${keyPair.name} (${keyPair.algorithm})`;
+                selectElement.appendChild(option);
+            });
+
+            selectElement.value = selectedKeyPairId || '';
+        }
+
+        function findKeyPair(keyPairs, id) {
+            return keyPairs.find((keyPair) => keyPair.id === id);
+        }
+
+        function selectedKeyPairName(prefix) {
+            return document.getElementById(`${prefix}-keypair-name`).value.trim();
+        }
+
+        function selectedKeyPairId(prefix) {
+            return document.getElementById(`${prefix}-keypair-select`).value;
+        }
+
+        function updateJWTKeyActionState() {
+            const isCreateNew = selectedKeyPairId('jwt') === '';
+            const hasName = selectedKeyPairName('jwt') !== '';
+            const deleteButton = document.getElementById('jwt-delete-keypair-btn');
+            const generateButton = document.getElementById('jwt-generate-keypair-btn');
+            const saveButton = document.getElementById('jwt-settings-save');
+
+            deleteButton.style.display = isCreateNew ? 'none' : '';
+            generateButton.style.display = isCreateNew ? '' : 'none';
+            saveButton.disabled = isCreateNew && !hasName;
+        }
+
+        function updateJWEKeyActionState() {
+            const isCreateNew = selectedKeyPairId('jwe') === '';
+            const hasName = selectedKeyPairName('jwe') !== '';
+            const deleteButton = document.getElementById('jwe-delete-keypair-btn');
+            const generateButton = document.getElementById('jwe-generate-keypair-btn');
+            const saveButton = document.getElementById('jwe-settings-save');
+
+            deleteButton.style.display = isCreateNew ? 'none' : '';
+            generateButton.style.display = isCreateNew ? '' : 'none';
+            saveButton.disabled = isCreateNew && !hasName;
+        }
+
+        function updateJWTSettingsFromUI() {
+            jwtSettings.algorithm = document.getElementById('jwt-algorithm').value;
+            jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
+            jwtSettings.publicKeyPem = document.getElementById('jwt-public-key').value;
+            jwtSettings.privateKeyPem = document.getElementById('jwt-private-key').value;
+            jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
+            jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
+            jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
+            jwtSettings.expUnit = document.getElementById('jwt-exp-unit').value;
+        }
+
+        function updateJWESettingsFromUI() {
+            jweSettings.algorithm = document.getElementById('jwe-algorithm').value;
+            jweSettings.secretKey = document.getElementById('jwe-secret-key').value;
+            jweSettings.publicKeyPem = document.getElementById('jwe-public-key').value;
+            jweSettings.privateKeyPem = document.getElementById('jwe-private-key').value;
+            jweSettings.autoIat = document.getElementById('jwe-auto-iat').checked;
+            jweSettings.autoExp = document.getElementById('jwe-auto-exp').checked;
+            jweSettings.expDuration = parseInt(document.getElementById('jwe-exp-duration').value) || 1;
+            jweSettings.expUnit = document.getElementById('jwe-exp-unit').value;
+        }
+
+        function setJWTFormVisibility() {
+            const algorithm = document.getElementById('jwt-algorithm').value;
+            document.getElementById('jwt-secret-key-section').style.display = algorithm.startsWith('HS') ? '' : 'none';
+            document.getElementById('jwt-keypair-section').style.display = algorithm.startsWith('HS') ? 'none' : '';
+            document.getElementById('exp-config-section').style.display = document.getElementById('jwt-auto-exp').checked ? '' : 'none';
+            updateJWTKeyActionState();
+        }
+
+        function setJWEFormVisibility() {
+            const algorithm = document.getElementById('jwe-algorithm').value;
+            document.getElementById('jwe-secret-key-section').style.display = algorithm === 'dir' ? '' : 'none';
+            document.getElementById('jwe-keypair-section').style.display = algorithm === 'ECDH-ES' ? '' : 'none';
+            document.getElementById('jwe-exp-config-section').style.display = document.getElementById('jwe-auto-exp').checked ? '' : 'none';
+            updateJWEKeyActionState();
+        }
+
+        function populateJWTKeyForm(keyPair) {
+            document.getElementById('jwt-algorithm').value = keyPair.algorithm;
+            document.getElementById('jwt-secret-key').value = keyPair.secretKey || '';
+            document.getElementById('jwt-public-key').value = keyPair.publicKeyPem || '';
+            document.getElementById('jwt-private-key').value = keyPair.privateKeyPem || '';
+            document.getElementById('jwt-keypair-name').value = keyPair.name;
+            document.getElementById('jwt-auto-iat').checked = keyPair.autoIat !== undefined ? keyPair.autoIat : jwtSettings.autoIat;
+            document.getElementById('jwt-auto-exp').checked = keyPair.autoExp !== undefined ? keyPair.autoExp : jwtSettings.autoExp;
+            document.getElementById('jwt-exp-duration').value = keyPair.expDuration || jwtSettings.expDuration;
+            document.getElementById('jwt-exp-unit').value = keyPair.expUnit || jwtSettings.expUnit;
+            setJWTFormVisibility();
+        }
+
+        function populateJWEKeyForm(keyPair) {
+            document.getElementById('jwe-algorithm').value = keyPair.algorithm;
+            document.getElementById('jwe-secret-key').value = keyPair.secretKey || '';
+            document.getElementById('jwe-public-key').value = keyPair.publicKeyPem || '';
+            document.getElementById('jwe-private-key').value = keyPair.privateKeyPem || '';
+            document.getElementById('jwe-keypair-name').value = keyPair.name;
+            document.getElementById('jwe-auto-iat').checked = keyPair.autoIat !== undefined ? keyPair.autoIat : jweSettings.autoIat;
+            document.getElementById('jwe-auto-exp').checked = keyPair.autoExp !== undefined ? keyPair.autoExp : jweSettings.autoExp;
+            document.getElementById('jwe-exp-duration').value = keyPair.expDuration || jweSettings.expDuration;
+            document.getElementById('jwe-exp-unit').value = keyPair.expUnit || jweSettings.expUnit;
+            setJWEFormVisibility();
+        }
+
+        function hasJWTKeyInput() {
+            const algorithm = document.getElementById('jwt-algorithm').value;
+            const secretKey = document.getElementById('jwt-secret-key').value.trim();
+            const publicKeyPem = document.getElementById('jwt-public-key').value.trim();
+            const privateKeyPem = document.getElementById('jwt-private-key').value.trim();
+
+            return algorithm.startsWith('HS') ? Boolean(secretKey) : Boolean(publicKeyPem || privateKeyPem);
+        }
+
+        function hasJWEKeyInput() {
+            const algorithm = document.getElementById('jwe-algorithm').value;
+            const secretKey = document.getElementById('jwe-secret-key').value.trim();
+            const publicKeyPem = document.getElementById('jwe-public-key').value.trim();
+            const privateKeyPem = document.getElementById('jwe-private-key').value.trim();
+
+            return algorithm === 'dir' ? Boolean(secretKey) : Boolean(publicKeyPem || privateKeyPem);
+        }
+
+        function selectedJWTKeyHasChanged() {
+            const keyPair = findKeyPair(jwtKeyPairs, selectedKeyPairId('jwt'));
+            if (!keyPair) {
+                return false;
+            }
+
+            return keyPair.name !== selectedKeyPairName('jwt')
+                || keyPair.algorithm !== document.getElementById('jwt-algorithm').value
+                || (keyPair.secretKey || '') !== document.getElementById('jwt-secret-key').value.trim()
+                || (keyPair.publicKeyPem || '') !== document.getElementById('jwt-public-key').value.trim()
+                || (keyPair.privateKeyPem || '') !== document.getElementById('jwt-private-key').value.trim()
+                || (keyPair.autoIat !== undefined ? keyPair.autoIat : true) !== document.getElementById('jwt-auto-iat').checked
+                || (keyPair.autoExp !== undefined ? keyPair.autoExp : false) !== document.getElementById('jwt-auto-exp').checked
+                || (keyPair.expDuration || 1) !== (parseInt(document.getElementById('jwt-exp-duration').value) || 1)
+                || (keyPair.expUnit || 'hours') !== document.getElementById('jwt-exp-unit').value;
+        }
+
+        function selectedJWEKeyHasChanged() {
+            const keyPair = findKeyPair(jweKeyPairs, selectedKeyPairId('jwe'));
+            if (!keyPair) {
+                return false;
+            }
+
+            return keyPair.name !== selectedKeyPairName('jwe')
+                || keyPair.algorithm !== document.getElementById('jwe-algorithm').value
+                || (keyPair.secretKey || '') !== document.getElementById('jwe-secret-key').value.trim()
+                || (keyPair.publicKeyPem || '') !== document.getElementById('jwe-public-key').value.trim()
+                || (keyPair.privateKeyPem || '') !== document.getElementById('jwe-private-key').value.trim()
+                || (keyPair.autoIat !== undefined ? keyPair.autoIat : true) !== document.getElementById('jwe-auto-iat').checked
+                || (keyPair.autoExp !== undefined ? keyPair.autoExp : false) !== document.getElementById('jwe-auto-exp').checked
+                || (keyPair.expDuration || 1) !== (parseInt(document.getElementById('jwe-exp-duration').value) || 1)
+                || (keyPair.expUnit || 'hours') !== document.getElementById('jwe-exp-unit').value;
+        }
+
+        function resetJWTKeyFields() {
+            document.getElementById('jwt-keypair-select').value = '';
+            document.getElementById('jwt-secret-key').value = '';
+            document.getElementById('jwt-public-key').value = '';
+            document.getElementById('jwt-private-key').value = '';
+            document.getElementById('jwt-keypair-name').value = '';
+            setJWTFormVisibility();
+        }
+
+        function resetJWEKeyFields() {
+            document.getElementById('jwe-keypair-select').value = '';
+            document.getElementById('jwe-secret-key').value = '';
+            document.getElementById('jwe-public-key').value = '';
+            document.getElementById('jwe-private-key').value = '';
+            document.getElementById('jwe-keypair-name').value = '';
+            setJWEFormVisibility();
+        }
+
         function updateJWTSettingsUI() {
             const algorithmSelect = document.getElementById('jwt-algorithm');
             const secretKeyInput = document.getElementById('jwt-secret-key');
             const publicKeyTextarea = document.getElementById('jwt-public-key');
             const privateKeyTextarea = document.getElementById('jwt-private-key');
+            const keyPairSelect = document.getElementById('jwt-keypair-select');
+            const keyPairNameInput = document.getElementById('jwt-keypair-name');
             const autoIatCheckbox = document.getElementById('jwt-auto-iat');
             const autoExpCheckbox = document.getElementById('jwt-auto-exp');
             const expDurationInput = document.getElementById('jwt-exp-duration');
             const expUnitSelect = document.getElementById('jwt-exp-unit');
-            const secretKeySection = document.getElementById('jwt-secret-key-section');
-            const keypairSection = document.getElementById('jwt-keypair-section');
-            const expConfigSection = document.getElementById('exp-config-section');
 
             algorithmSelect.value = jwtSettings.algorithm;
             secretKeyInput.value = jwtSettings.secretKey || '';
+            publicKeyTextarea.value = jwtSettings.publicKeyPem || '';
+            privateKeyTextarea.value = jwtSettings.privateKeyPem || '';
             autoIatCheckbox.checked = jwtSettings.autoIat;
             autoExpCheckbox.checked = jwtSettings.autoExp;
             expDurationInput.value = jwtSettings.expDuration;
             expUnitSelect.value = jwtSettings.expUnit;
-
-            // Show/hide sections based on algorithm
-            if (jwtSettings.algorithm.startsWith('HS')) {
-                secretKeySection.style.display = '';
-                keypairSection.style.display = 'none';
+            renderKeyPairOptions(keyPairSelect, jwtKeyPairs, jwtSettings.activeKeyPairId);
+            const activeKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
+            if (activeKeyPair) {
+                keyPairNameInput.value = activeKeyPair.name;
+                autoIatCheckbox.checked = activeKeyPair.autoIat !== undefined ? activeKeyPair.autoIat : jwtSettings.autoIat;
+                autoExpCheckbox.checked = activeKeyPair.autoExp !== undefined ? activeKeyPair.autoExp : jwtSettings.autoExp;
+                expDurationInput.value = activeKeyPair.expDuration || jwtSettings.expDuration;
+                expUnitSelect.value = activeKeyPair.expUnit || jwtSettings.expUnit;
             } else {
-                secretKeySection.style.display = 'none';
-                keypairSection.style.display = '';
-
-                // Display PEM keys (not JWK)
-                publicKeyTextarea.value = jwtSettings.publicKeyPem || '';
-                privateKeyTextarea.value = jwtSettings.privateKeyPem || '';
+                keyPairNameInput.value = '';
             }
-
-            // Show/hide exp config section
-            expConfigSection.style.display = jwtSettings.autoExp ? '' : 'none';
+            setJWTFormVisibility();
         }
 
         function updateJWESettingsUI() {
@@ -3085,13 +3379,12 @@
             const secretKeyInput = document.getElementById('jwe-secret-key');
             const publicKeyTextarea = document.getElementById('jwe-public-key');
             const privateKeyTextarea = document.getElementById('jwe-private-key');
+            const keyPairSelect = document.getElementById('jwe-keypair-select');
+            const keyPairNameInput = document.getElementById('jwe-keypair-name');
             const autoIatCheckbox = document.getElementById('jwe-auto-iat');
             const autoExpCheckbox = document.getElementById('jwe-auto-exp');
             const expDurationInput = document.getElementById('jwe-exp-duration');
             const expUnitSelect = document.getElementById('jwe-exp-unit');
-            const expConfigSection = document.getElementById('jwe-exp-config-section');
-            const secretKeySection = document.getElementById('jwe-secret-key-section');
-            const keypairSection = document.getElementById('jwe-keypair-section');
 
             algorithmSelect.value = jweSettings.algorithm;
             secretKeyInput.value = jweSettings.secretKey || '';
@@ -3101,13 +3394,18 @@
             autoExpCheckbox.checked = jweSettings.autoExp;
             expDurationInput.value = jweSettings.expDuration;
             expUnitSelect.value = jweSettings.expUnit;
-
-            // Show fields based on algorithm
-            secretKeySection.style.display = jweSettings.algorithm === 'dir' ? '' : 'none';
-            keypairSection.style.display = jweSettings.algorithm === 'ECDH-ES' ? '' : 'none';
-
-            // Show/hide exp config section
-            expConfigSection.style.display = jweSettings.autoExp ? '' : 'none';
+            renderKeyPairOptions(keyPairSelect, jweKeyPairs, jweSettings.activeKeyPairId);
+            const activeKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
+            if (activeKeyPair) {
+                keyPairNameInput.value = activeKeyPair.name;
+                autoIatCheckbox.checked = activeKeyPair.autoIat !== undefined ? activeKeyPair.autoIat : jweSettings.autoIat;
+                autoExpCheckbox.checked = activeKeyPair.autoExp !== undefined ? activeKeyPair.autoExp : jweSettings.autoExp;
+                expDurationInput.value = activeKeyPair.expDuration || jweSettings.expDuration;
+                expUnitSelect.value = activeKeyPair.expUnit || jweSettings.expUnit;
+            } else {
+                keyPairNameInput.value = '';
+            }
+            setJWEFormVisibility();
         }
 
         async function initJWESettings() {
@@ -3118,6 +3416,7 @@
                 // Initialize with default settings
                 await saveJWESettings(jweSettings);
             }
+            jweKeyPairs = await loadKeyPairs('jweKeyPairs');
             updateJWESettingsUI();
         }
 
@@ -3182,7 +3481,7 @@
 
         // ===== JWT/JWE Key Management =====
         async function generateKeyPair() {
-            const algorithm = jwtSettings.algorithm;
+            const algorithm = document.getElementById('jwt-algorithm').value;
 
             if (algorithm.startsWith('HS')) {
                 updateStatus('HS algorithms use symmetric keys, not key pairs');
@@ -3200,13 +3499,10 @@
                 const publicKeyPem = await exportSPKI(publicKey);
                 const privateKeyPem = await exportPKCS8(privateKey);
 
-                // Update settings
-                jwtSettings.publicKeyPem = publicKeyPem;
-                jwtSettings.privateKeyPem = privateKeyPem;
-
-                // Update UI
                 document.getElementById('jwt-public-key').value = publicKeyPem;
                 document.getElementById('jwt-private-key').value = privateKeyPem;
+                document.getElementById('jwt-keypair-select').value = '';
+                setJWTFormVisibility();
 
                 updateStatus(`${algorithm} key pair generated successfully`);
                 return true;
@@ -3217,7 +3513,7 @@
         }
 
         async function generateJWEKeyPair() {
-            if (jweSettings.algorithm !== 'ECDH-ES') {
+            if (document.getElementById('jwe-algorithm').value !== 'ECDH-ES') {
                 updateStatus('Switch JWE algorithm to ECDH-ES to generate a key pair');
                 return false;
             }
@@ -3233,11 +3529,10 @@
                 const publicKeyPem = await exportSPKI(publicKey);
                 const privateKeyPem = await exportPKCS8(privateKey);
 
-                jweSettings.publicKeyPem = publicKeyPem;
-                jweSettings.privateKeyPem = privateKeyPem;
-
                 document.getElementById('jwe-public-key').value = publicKeyPem;
                 document.getElementById('jwe-private-key').value = privateKeyPem;
+                document.getElementById('jwe-keypair-select').value = '';
+                setJWEFormVisibility();
 
                 updateStatus('ECDH-ES key pair generated successfully');
                 return true;
@@ -3245,6 +3540,277 @@
                 updateStatus(`Failed to generate JWE key pair: ${e.message}`);
                 return false;
             }
+        }
+
+        async function saveCurrentJWTKeyPair() {
+            const algorithm = document.getElementById('jwt-algorithm').value;
+            const secretKey = document.getElementById('jwt-secret-key').value.trim();
+            const publicKeyPem = document.getElementById('jwt-public-key').value.trim();
+            const privateKeyPem = document.getElementById('jwt-private-key').value.trim();
+            const name = selectedKeyPairName('jwt');
+
+            if (!name) {
+                updateStatus('Enter a JWT key name before saving');
+                return false;
+            }
+
+            if (algorithm.startsWith('HS')) {
+                const minLengths = {
+                    'HS256': 32,
+                    'HS384': 48,
+                    'HS512': 64
+                };
+                const minLength = minLengths[algorithm];
+
+                if (!secretKey || secretKey.length < minLength) {
+                    updateStatus(`JWT secret key must be at least ${minLength} characters for ${algorithm}`);
+                    return false;
+                }
+            } else {
+                if (!publicKeyPem || !privateKeyPem) {
+                    updateStatus('JWT key save requires both public and private PEM values');
+                    return false;
+                }
+
+                if (!publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                    updateStatus('Invalid JWT public key format. Expected PEM SPKI format.');
+                    return false;
+                }
+
+                try {
+                    normalizeJwtPrivateKeyPem(privateKeyPem, algorithm);
+                } catch (e) {
+                    updateStatus(`Invalid JWT private key: ${e.message}`);
+                    return false;
+                }
+            }
+
+            const selectedId = selectedKeyPairId('jwt');
+            const existingKeyPair = findKeyPair(jwtKeyPairs, selectedId);
+            const keyPair = createKeyPairRecord({
+                id: existingKeyPair ? existingKeyPair.id : undefined,
+                name,
+                algorithm,
+                secretKey: algorithm.startsWith('HS') ? secretKey : '',
+                publicKeyPem: algorithm.startsWith('HS') ? '' : publicKeyPem,
+                privateKeyPem: algorithm.startsWith('HS') ? '' : privateKeyPem,
+                autoIat: document.getElementById('jwt-auto-iat').checked,
+                autoExp: document.getElementById('jwt-auto-exp').checked,
+                expDuration: parseInt(document.getElementById('jwt-exp-duration').value) || 1,
+                expUnit: document.getElementById('jwt-exp-unit').value,
+                createdAt: existingKeyPair ? existingKeyPair.createdAt : undefined
+            });
+
+            await saveKeyPair('jwtKeyPairs', keyPair);
+            jwtKeyPairs = await loadKeyPairs('jwtKeyPairs');
+            jwtSettings.algorithm = algorithm;
+            jwtSettings.secretKey = keyPair.secretKey;
+            jwtSettings.publicKeyPem = keyPair.publicKeyPem;
+            jwtSettings.privateKeyPem = keyPair.privateKeyPem;
+            jwtSettings.autoIat = keyPair.autoIat;
+            jwtSettings.autoExp = keyPair.autoExp;
+            jwtSettings.expDuration = keyPair.expDuration;
+            jwtSettings.expUnit = keyPair.expUnit;
+            jwtSettings.activeKeyPairId = keyPair.id;
+            await saveJWTSettings(jwtSettings);
+            updateJWTSettingsUI();
+            updateStatus(`JWT key "${name}" saved and set active`);
+            return true;
+        }
+
+        async function deleteSelectedJWTKeyPair() {
+            const id = selectedKeyPairId('jwt');
+            const keyPair = findKeyPair(jwtKeyPairs, id);
+
+            if (!keyPair) {
+                updateStatus('Select a saved JWT key to delete');
+                return false;
+            }
+
+            await deleteKeyPair('jwtKeyPairs', id);
+            if (jwtSettings.activeKeyPairId === id) {
+                jwtSettings.activeKeyPairId = '';
+                await saveJWTSettings(jwtSettings);
+            }
+            jwtKeyPairs = await loadKeyPairs('jwtKeyPairs');
+            document.getElementById('jwt-keypair-name').value = '';
+            updateJWTSettingsUI();
+            updateStatus(`JWT key "${keyPair.name}" deleted`);
+            return true;
+        }
+
+        async function saveCurrentJWEKeyPair() {
+            const algorithm = document.getElementById('jwe-algorithm').value;
+            const secretKey = document.getElementById('jwe-secret-key').value.trim();
+            const publicKeyPem = document.getElementById('jwe-public-key').value.trim();
+            const privateKeyPem = document.getElementById('jwe-private-key').value.trim();
+            const name = selectedKeyPairName('jwe');
+
+            if (!name) {
+                updateStatus('Enter a JWE key name before saving');
+                return false;
+            }
+
+            if (algorithm === 'dir') {
+                if (!secretKey || secretKey.length < 32) {
+                    updateStatus('JWE secret key must be at least 32 characters for dir');
+                    return false;
+                }
+            } else if (algorithm === 'ECDH-ES') {
+                if (!publicKeyPem || !privateKeyPem) {
+                    updateStatus('JWE key save requires both public and private PEM values');
+                    return false;
+                }
+
+                if (!publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                    updateStatus('Invalid JWE public key format. Expected PEM SPKI format.');
+                    return false;
+                }
+
+                if (!privateKeyPem.includes('-----BEGIN PRIVATE KEY-----')) {
+                    updateStatus('Invalid JWE private key format. Expected PEM PKCS#8 format.');
+                    return false;
+                }
+            } else {
+                updateStatus(`Unsupported JWE algorithm: ${algorithm}`);
+                return false;
+            }
+
+            const selectedId = selectedKeyPairId('jwe');
+            const existingKeyPair = findKeyPair(jweKeyPairs, selectedId);
+            const keyPair = createKeyPairRecord({
+                id: existingKeyPair ? existingKeyPair.id : undefined,
+                name,
+                algorithm,
+                secretKey: algorithm === 'dir' ? secretKey : '',
+                publicKeyPem: algorithm === 'ECDH-ES' ? publicKeyPem : '',
+                privateKeyPem: algorithm === 'ECDH-ES' ? privateKeyPem : '',
+                autoIat: document.getElementById('jwe-auto-iat').checked,
+                autoExp: document.getElementById('jwe-auto-exp').checked,
+                expDuration: parseInt(document.getElementById('jwe-exp-duration').value) || 1,
+                expUnit: document.getElementById('jwe-exp-unit').value,
+                createdAt: existingKeyPair ? existingKeyPair.createdAt : undefined
+            });
+
+            await saveKeyPair('jweKeyPairs', keyPair);
+            jweKeyPairs = await loadKeyPairs('jweKeyPairs');
+            jweSettings.algorithm = algorithm;
+            jweSettings.secretKey = keyPair.secretKey;
+            jweSettings.publicKeyPem = keyPair.publicKeyPem;
+            jweSettings.privateKeyPem = keyPair.privateKeyPem;
+            jweSettings.autoIat = keyPair.autoIat;
+            jweSettings.autoExp = keyPair.autoExp;
+            jweSettings.expDuration = keyPair.expDuration;
+            jweSettings.expUnit = keyPair.expUnit;
+            jweSettings.activeKeyPairId = keyPair.id;
+            await saveJWESettings(jweSettings);
+            updateJWESettingsUI();
+            updateStatus(`JWE key "${name}" saved and set active`);
+            return true;
+        }
+
+        async function deleteSelectedJWEKeyPair() {
+            const id = selectedKeyPairId('jwe');
+            const keyPair = findKeyPair(jweKeyPairs, id);
+
+            if (!keyPair) {
+                updateStatus('Select a saved JWE key to delete');
+                return false;
+            }
+
+            await deleteKeyPair('jweKeyPairs', id);
+            if (jweSettings.activeKeyPairId === id) {
+                jweSettings.activeKeyPairId = '';
+                await saveJWESettings(jweSettings);
+            }
+            jweKeyPairs = await loadKeyPairs('jweKeyPairs');
+            document.getElementById('jwe-keypair-name').value = '';
+            updateJWESettingsUI();
+            updateStatus(`JWE key "${keyPair.name}" deleted`);
+            return true;
+        }
+
+        function derLengthBytes(length) {
+            if (length < 128) {
+                return [length];
+            }
+
+            const bytes = [];
+            let remaining = length;
+            while (remaining > 0) {
+                bytes.unshift(remaining & 0xff);
+                remaining >>= 8;
+            }
+            return [0x80 | bytes.length, ...bytes];
+        }
+
+        function derEncode(tag, valueBytes) {
+            return new Uint8Array([tag, ...derLengthBytes(valueBytes.length), ...valueBytes]);
+        }
+
+        function concatUint8Arrays(...arrays) {
+            const totalLength = arrays.reduce((length, array) => length + array.length, 0);
+            const result = new Uint8Array(totalLength);
+            let offset = 0;
+
+            arrays.forEach((array) => {
+                result.set(array, offset);
+                offset += array.length;
+            });
+
+            return result;
+        }
+
+        function pemToDer(pem, label) {
+            const pattern = new RegExp(`-----BEGIN ${label}-----([\\s\\S]+?)-----END ${label}-----`);
+            const match = pem.match(pattern);
+
+            if (!match) {
+                throw new Error(`Invalid ${label} PEM format.`);
+            }
+
+            const binary = atob(match[1].replace(/\s/g, ''));
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function derToPem(derBytes, label) {
+            let binary = '';
+            derBytes.forEach((byte) => {
+                binary += String.fromCharCode(byte);
+            });
+
+            const base64 = btoa(binary);
+            const lines = base64.match(/.{1,64}/g) || [];
+            return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----`;
+        }
+
+        function convertPkcs1RsaPrivateKeyToPkcs8(pkcs1Pem) {
+            const rsaPrivateKeyDer = pemToDer(pkcs1Pem, 'RSA PRIVATE KEY');
+            const version = derEncode(0x02, new Uint8Array([0x00]));
+            const rsaEncryptionAlgorithm = derEncode(0x30, new Uint8Array([
+                0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+                0x05, 0x00
+            ]));
+            const privateKey = derEncode(0x04, rsaPrivateKeyDer);
+            const privateKeyInfo = derEncode(0x30, concatUint8Arrays(version, rsaEncryptionAlgorithm, privateKey));
+
+            return derToPem(privateKeyInfo, 'PRIVATE KEY');
+        }
+
+        function normalizeJwtPrivateKeyPem(privateKeyPem, algorithm) {
+            if (privateKeyPem.includes('-----BEGIN PRIVATE KEY-----')) {
+                return privateKeyPem;
+            }
+
+            if (algorithm.startsWith('RS') && privateKeyPem.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+                return convertPkcs1RsaPrivateKeyToPkcs8(privateKeyPem);
+            }
+
+            throw new Error('Invalid private key format. Expected PEM PKCS#8 format, or RSA PKCS#1 format for RS algorithms.');
         }
 
         async function getKeyForAlgorithm() {
@@ -3274,13 +3840,10 @@
                     throw new Error(`No private key found. Please generate or paste a key pair in JWT settings.`);
                 }
 
-                // Validate PEM format
-                if (!jwtSettings.privateKeyPem.includes('-----BEGIN PRIVATE KEY-----')) {
-                    throw new Error('Invalid private key format. Expected PEM PKCS8 format.');
-                }
+                const privateKeyPem = normalizeJwtPrivateKeyPem(jwtSettings.privateKeyPem, algorithm);
 
-                // Import private key from PEM
-                return await importPKCS8(jwtSettings.privateKeyPem, algorithm);
+                // Import private key from PEM. PKCS#1 RSA keys are converted to PKCS#8 first because WebCrypto imports PKCS#8 private keys.
+                return await importPKCS8(privateKeyPem, algorithm);
             }
         }
 
@@ -7541,36 +8104,55 @@
         });
 
         document.getElementById('jwt-settings-save').addEventListener('click', async () => {
-            // Save settings from UI
-            jwtSettings.algorithm = document.getElementById('jwt-algorithm').value;
-            jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
-            jwtSettings.publicKeyPem = document.getElementById('jwt-public-key').value;
-            jwtSettings.privateKeyPem = document.getElementById('jwt-private-key').value;
-            jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
-            jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
-            jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
-            jwtSettings.expUnit = document.getElementById('jwt-exp-unit').value;
+            updateJWTSettingsFromUI();
+            const activeJwtKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
+            if (!activeJwtKeyPair || activeJwtKeyPair.algorithm !== jwtSettings.algorithm || (activeJwtKeyPair.secretKey || '') !== jwtSettings.secretKey || activeJwtKeyPair.publicKeyPem !== jwtSettings.publicKeyPem || activeJwtKeyPair.privateKeyPem !== jwtSettings.privateKeyPem) {
+                jwtSettings.activeKeyPairId = '';
+            }
 
-            await saveJWTSettings(jwtSettings);
+            if (hasJWTKeyInput() || selectedKeyPairName('jwt') || selectedJWTKeyHasChanged()) {
+                const saved = await saveCurrentJWTKeyPair();
+                if (!saved) {
+                    return;
+                }
+            } else {
+                await saveJWTSettings(jwtSettings);
+            }
+
             jwtSettingsModal.style.display = 'none';
             updateStatus('JWT settings saved');
         });
 
         // Algorithm change handler
-        document.getElementById('jwt-algorithm').addEventListener('change', (e) => {
-            jwtSettings.algorithm = e.target.value;
-            updateJWTSettingsUI();
+        document.getElementById('jwt-algorithm').addEventListener('change', () => {
+            setJWTFormVisibility();
         });
 
         // Auto Exp checkbox handler
-        document.getElementById('jwt-auto-exp').addEventListener('change', (e) => {
-            const expConfigSection = document.getElementById('exp-config-section');
-            expConfigSection.style.display = e.target.checked ? '' : 'none';
+        document.getElementById('jwt-auto-exp').addEventListener('change', () => {
+            setJWTFormVisibility();
         });
 
         // Generate key pair button
         document.getElementById('jwt-generate-keypair-btn').addEventListener('click', () => {
             generateKeyPair();
+        });
+
+        document.getElementById('jwt-keypair-select').addEventListener('change', (e) => {
+            const keyPair = findKeyPair(jwtKeyPairs, e.target.value);
+            if (keyPair) {
+                populateJWTKeyForm(keyPair);
+            } else {
+                resetJWTKeyFields();
+            }
+        });
+
+        document.getElementById('jwt-keypair-name').addEventListener('input', () => {
+            updateJWTKeyActionState();
+        });
+
+        document.getElementById('jwt-delete-keypair-btn').addEventListener('click', async () => {
+            await deleteSelectedJWTKeyPair();
         });
 
         // Copy key buttons
@@ -7619,34 +8201,53 @@
         });
 
         document.getElementById('jwe-settings-save').addEventListener('click', async () => {
-            // Save settings from UI
-            jweSettings.algorithm = document.getElementById('jwe-algorithm').value;
-            jweSettings.secretKey = document.getElementById('jwe-secret-key').value;
-            jweSettings.publicKeyPem = document.getElementById('jwe-public-key').value;
-            jweSettings.privateKeyPem = document.getElementById('jwe-private-key').value;
-            jweSettings.autoIat = document.getElementById('jwe-auto-iat').checked;
-            jweSettings.autoExp = document.getElementById('jwe-auto-exp').checked;
-            jweSettings.expDuration = parseInt(document.getElementById('jwe-exp-duration').value) || 1;
-            jweSettings.expUnit = document.getElementById('jwe-exp-unit').value;
+            updateJWESettingsFromUI();
+            const activeJweKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
+            if (!activeJweKeyPair || activeJweKeyPair.algorithm !== jweSettings.algorithm || (activeJweKeyPair.secretKey || '') !== jweSettings.secretKey || activeJweKeyPair.publicKeyPem !== jweSettings.publicKeyPem || activeJweKeyPair.privateKeyPem !== jweSettings.privateKeyPem) {
+                jweSettings.activeKeyPairId = '';
+            }
 
-            await saveJWESettings(jweSettings);
+            if (hasJWEKeyInput() || selectedKeyPairName('jwe') || selectedJWEKeyHasChanged()) {
+                const saved = await saveCurrentJWEKeyPair();
+                if (!saved) {
+                    return;
+                }
+            } else {
+                await saveJWESettings(jweSettings);
+            }
+
             jweSettingsModal.style.display = 'none';
             updateStatus('JWE settings saved');
         });
 
-        document.getElementById('jwe-algorithm').addEventListener('change', (e) => {
-            jweSettings.algorithm = e.target.value;
-            updateJWESettingsUI();
+        document.getElementById('jwe-algorithm').addEventListener('change', () => {
+            setJWEFormVisibility();
         });
 
         document.getElementById('jwe-generate-keypair-btn').addEventListener('click', () => {
             generateJWEKeyPair();
         });
 
+        document.getElementById('jwe-keypair-select').addEventListener('change', (e) => {
+            const keyPair = findKeyPair(jweKeyPairs, e.target.value);
+            if (keyPair) {
+                populateJWEKeyForm(keyPair);
+            } else {
+                resetJWEKeyFields();
+            }
+        });
+
+        document.getElementById('jwe-keypair-name').addEventListener('input', () => {
+            updateJWEKeyActionState();
+        });
+
+        document.getElementById('jwe-delete-keypair-btn').addEventListener('click', async () => {
+            await deleteSelectedJWEKeyPair();
+        });
+
         // JWE Auto Exp checkbox handler
-        document.getElementById('jwe-auto-exp').addEventListener('change', (e) => {
-            const expConfigSection = document.getElementById('jwe-exp-config-section');
-            expConfigSection.style.display = e.target.checked ? '' : 'none';
+        document.getElementById('jwe-auto-exp').addEventListener('change', () => {
+            setJWEFormVisibility();
         });
 
         // Close JWE settings modal when clicking outside
