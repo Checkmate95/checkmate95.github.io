@@ -552,6 +552,14 @@
             min-width: 0;
         }
 
+        .comparison-role-label {
+            display: none;
+            flex: 0 0 auto;
+            color: #9da5b4;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
         .comparison-filename-group-right {
             justify-content: flex-start;
         }
@@ -1047,6 +1055,7 @@
                 </div>
                 <div class="comparison-filenames" style="display: none;">
                     <div class="comparison-filename-group">
+                        <span class="comparison-role-label" id="filename-main-role"></span>
                         <span class="filename" id="filename-main"></span>
                         <button
                             id="comparison-close-left-btn"
@@ -1058,6 +1067,7 @@
                         >✕</button>
                     </div>
                     <div class="comparison-filename-group comparison-filename-group-right">
+                        <span class="comparison-role-label" id="filename-compare-role"></span>
                         <span class="filename" id="filename-compare"></span>
                         <button
                             id="comparison-close-right-btn"
@@ -2478,9 +2488,25 @@
             if (viewSelect) viewSelect.value = splitCompareMode;
             if (formatToggle && !isComparing) formatToggle.style.display = 'none';
             if (filenameContainer) filenameContainer.style.display = isComparing ? 'flex' : 'none';
+            updateComparisonRoleLabels();
             document.querySelectorAll('.comparison-pane-close-btn').forEach((button) => {
                 button.style.display = isComparing ? 'inline-flex' : 'none';
             });
+        }
+
+        function updateComparisonRoleLabels() {
+            const leftRole = document.getElementById('filename-main-role');
+            const rightRole = document.getElementById('filename-compare-role');
+            const showRoles = isComparing && comparisonViewMode === 'inline';
+
+            if (leftRole) {
+                leftRole.textContent = showRoles ? 'Base' : '';
+                leftRole.style.display = showRoles ? 'inline-flex' : 'none';
+            }
+            if (rightRole) {
+                rightRole.textContent = showRoles ? 'Incoming' : '';
+                rightRole.style.display = showRoles ? 'inline-flex' : 'none';
+            }
         }
 
         async function renderSplitEditors() {
@@ -6810,23 +6836,28 @@
                 return;
             }
 
-            const editors = document.querySelectorAll('#editor-content .cm-mergeViewEditor');
-            if (editors.length !== 2) {
+            const panes = Array.from(document.querySelectorAll('#editor-content .cm-mergeViewEditor'))
+                .map((editor) => ({
+                    editor,
+                    scroller: editor.querySelector('.cm-scroller')
+                }))
+                .filter((pane) => pane.scroller);
+            if (panes.length !== 2) {
                 return;
             }
 
-            const [leftEditor, rightEditor] = editors;
+            const [leftPane, rightPane] = panes;
             const syncScroll = (source, target) => {
                 if (comparisonScrollSyncSource && comparisonScrollSyncSource !== source) {
                     return;
                 }
 
                 comparisonScrollSyncSource = source;
-                target.scrollTop = Math.min(
-                    source.scrollTop,
-                    Math.max(0, target.scrollHeight - target.clientHeight)
+                target.editor.scrollTop = Math.min(
+                    source.editor.scrollTop,
+                    Math.max(0, target.editor.scrollHeight - target.editor.clientHeight)
                 );
-                target.scrollLeft = source.scrollLeft;
+                target.scroller.scrollLeft = source.scroller.scrollLeft;
 
                 requestAnimationFrame(() => {
                     if (comparisonScrollSyncSource === source) {
@@ -6834,14 +6865,18 @@
                     }
                 });
             };
-            const syncLeftToRight = () => syncScroll(leftEditor, rightEditor);
-            const syncRightToLeft = () => syncScroll(rightEditor, leftEditor);
+            const syncLeftToRight = () => syncScroll(leftPane, rightPane);
+            const syncRightToLeft = () => syncScroll(rightPane, leftPane);
 
-            leftEditor.addEventListener('scroll', syncLeftToRight, { passive: true });
-            rightEditor.addEventListener('scroll', syncRightToLeft, { passive: true });
+            leftPane.editor.addEventListener('scroll', syncLeftToRight, { passive: true });
+            leftPane.scroller.addEventListener('scroll', syncLeftToRight, { passive: true });
+            rightPane.editor.addEventListener('scroll', syncRightToLeft, { passive: true });
+            rightPane.scroller.addEventListener('scroll', syncRightToLeft, { passive: true });
             comparisonScrollSyncCleanup = () => {
-                leftEditor.removeEventListener('scroll', syncLeftToRight);
-                rightEditor.removeEventListener('scroll', syncRightToLeft);
+                leftPane.editor.removeEventListener('scroll', syncLeftToRight);
+                leftPane.scroller.removeEventListener('scroll', syncLeftToRight);
+                rightPane.editor.removeEventListener('scroll', syncRightToLeft);
+                rightPane.scroller.removeEventListener('scroll', syncRightToLeft);
             };
         }
 
@@ -6924,10 +6959,10 @@
                     search({ top: true }),
                     highlightSelectionMatches(),
                     EditorView.editable.of(false),
-                    unifiedMergeView({ original: rightContent })
+                    unifiedMergeView({ original: leftContent })
                 ];
 
-                const inlineLangExtension = languageMap[comparisonState.left.lang];
+                const inlineLangExtension = languageMap[comparisonState.right.lang];
                 if (inlineLangExtension) {
                     const extValue = inlineLangExtension();
                     if (Array.isArray(extValue)) {
@@ -6942,7 +6977,7 @@
                 }
 
                 view = new EditorView({
-                    doc: leftContent,
+                    doc: rightContent,
                     extensions: inlineExtensions,
                     parent: mainContainer
                 });
