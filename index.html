@@ -472,7 +472,7 @@
         .editor-header {
             background: #252525;
             color: #cccccc;
-            padding: 8px 12px;
+            padding: 8px 0;
             font-size: 13px;
             border-bottom: 1px solid #1e1e1e;
             display: flex;
@@ -484,9 +484,14 @@
             font-weight: 500;
         }
 
+        #editor-container.comparison-active .editor-header {
+            padding-bottom: 0;
+        }
+
         .comparison-filenames {
             display: flex;
-            gap: 12px;
+            row-gap: 0;
+            column-gap: 0;
             align-items: center;
             width: 100%;
         }
@@ -494,20 +499,65 @@
         .comparison-controls {
             display: flex;
             gap: 8px;
+            padding-left: 12px;
             align-items: center;
             width: 100%;
         }
 
+        .comparison-pane-close-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+            background: transparent;
+            color: #cccccc;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .comparison-pane-close-btn:hover {
+            background: #c5242d;
+            color: #ffffff;
+        }
+
         #filename-main,
         #filename-compare {
-            width: 50%;
+            width: auto;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        #filename-compare {
-            text-align: right;
+        .comparison-filename-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            height: 32px;
+            padding: 0 8px;
+            border: 1px solid #2b2b2b;
+            border-radius: 3px;
+            background: #1e1e1e;
+            font-size: 12px;
+        }
+
+        .comparison-filename-group .filename {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .comparison-filename-group-right {
+            justify-content: flex-start;
+        }
+
+        .comparison-filename-group-right .filename {
+            text-align: left;
         }
 
         .editor-header .close-btn {
@@ -575,6 +625,12 @@
         .cm-insertedChunk {
             background-color: rgba(87, 171, 90, 0.15) !important;
             border-left: 3px solid rgba(87, 171, 90, 0.6);
+        }
+
+        /* Inline comparison already renders change markers in the gutter. */
+        #editor-content>.cm-editor .cm-deletedChunk,
+        #editor-content>.cm-editor .cm-insertedChunk {
+            border-left: none;
         }
 
         .cm-deletedText {
@@ -989,9 +1045,29 @@
                         </select>
                     </div>
                 </div>
-                <div class="comparison-filenames">
-                    <span class="filename" id="filename-main"></span>
-                    <span class="filename" id="filename-compare"></span>
+                <div class="comparison-filenames" style="display: none;">
+                    <div class="comparison-filename-group">
+                        <span class="filename" id="filename-main"></span>
+                        <button
+                            id="comparison-close-left-btn"
+                            class="comparison-pane-close-btn"
+                            type="button"
+                            title="Close left pane"
+                            aria-label="Close left pane"
+                            style="display: none;"
+                        >✕</button>
+                    </div>
+                    <div class="comparison-filename-group comparison-filename-group-right">
+                        <span class="filename" id="filename-compare"></span>
+                        <button
+                            id="comparison-close-right-btn"
+                            class="comparison-pane-close-btn"
+                            type="button"
+                            title="Close right pane"
+                            aria-label="Close right pane"
+                            style="display: none;"
+                        >✕</button>
+                    </div>
                 </div>
             </div>
             <div id="editor-content" class="editor-content"></div>
@@ -1986,6 +2062,8 @@
         let comparisonFormatEnabled = false; // Track whether formatted view is active
         let comparisonViewMode = 'side-by-side';
         let splitCompareMode = 'none';
+        let comparisonScrollSyncCleanup = null;
+        let comparisonScrollSyncSource = null;
         let previewUrls = {
             left: null,
             right: null
@@ -2361,6 +2439,7 @@
             revokePreviewUrl('left');
             revokePreviewUrl('right');
             destroyPaneEditors();
+            clearComparisonScrollSync();
             if (mergeView) {
                 mergeView.destroy();
                 mergeView = null;
@@ -2391,17 +2470,24 @@
             const viewContainer = document.getElementById('view-mode-container');
             const viewSelect = document.getElementById('comparison-view-mode');
             const formatToggle = document.getElementById('format-toggle-container');
+            const filenameContainer = document.querySelector('.comparison-filenames');
 
             editorContainer.classList.toggle('split-view', isSplitEditor);
+            editorContainer.classList.toggle('comparison-active', isComparing);
             if (viewContainer) viewContainer.style.display = isSplitEditor ? 'flex' : 'none';
             if (viewSelect) viewSelect.value = splitCompareMode;
             if (formatToggle && !isComparing) formatToggle.style.display = 'none';
+            if (filenameContainer) filenameContainer.style.display = isComparing ? 'flex' : 'none';
+            document.querySelectorAll('.comparison-pane-close-btn').forEach((button) => {
+                button.style.display = isComparing ? 'inline-flex' : 'none';
+            });
         }
 
         async function renderSplitEditors() {
             const editorContainer = document.getElementById('editor-container');
             editorContainer.classList.add('editor-split');
             editorContainer.classList.add('split-view');
+            clearComparisonScrollSync();
             ensureSplitLayout();
 
             if (mergeView) {
@@ -2522,6 +2608,7 @@
                 editorContainer.classList.remove('split-view');
                 updateSplitCompareControls();
                 destroyPaneEditors();
+                clearComparisonScrollSync();
                 if (mergeView) {
                     mergeView.destroy();
                     mergeView = null;
@@ -2548,6 +2635,7 @@
             editorContainer.classList.remove('editor-split');
             editorContainer.classList.remove('split-view');
             destroyPaneEditors();
+            clearComparisonScrollSync();
             if (mergeView) {
                 mergeView.destroy();
                 mergeView = null;
@@ -6707,6 +6795,56 @@
             return success;
         }
 
+        function clearComparisonScrollSync() {
+            if (comparisonScrollSyncCleanup) {
+                comparisonScrollSyncCleanup();
+                comparisonScrollSyncCleanup = null;
+            }
+            comparisonScrollSyncSource = null;
+        }
+
+        function setupComparisonScrollSync() {
+            clearComparisonScrollSync();
+
+            if (comparisonViewMode !== 'side-by-side') {
+                return;
+            }
+
+            const editors = document.querySelectorAll('#editor-content .cm-mergeViewEditor');
+            if (editors.length !== 2) {
+                return;
+            }
+
+            const [leftEditor, rightEditor] = editors;
+            const syncScroll = (source, target) => {
+                if (comparisonScrollSyncSource && comparisonScrollSyncSource !== source) {
+                    return;
+                }
+
+                comparisonScrollSyncSource = source;
+                target.scrollTop = Math.min(
+                    source.scrollTop,
+                    Math.max(0, target.scrollHeight - target.clientHeight)
+                );
+                target.scrollLeft = source.scrollLeft;
+
+                requestAnimationFrame(() => {
+                    if (comparisonScrollSyncSource === source) {
+                        comparisonScrollSyncSource = null;
+                    }
+                });
+            };
+            const syncLeftToRight = () => syncScroll(leftEditor, rightEditor);
+            const syncRightToLeft = () => syncScroll(rightEditor, leftEditor);
+
+            leftEditor.addEventListener('scroll', syncLeftToRight, { passive: true });
+            rightEditor.addEventListener('scroll', syncRightToLeft, { passive: true });
+            comparisonScrollSyncCleanup = () => {
+                leftEditor.removeEventListener('scroll', syncLeftToRight);
+                rightEditor.removeEventListener('scroll', syncRightToLeft);
+            };
+        }
+
         function renderComparisonView(applyFormat = false) {
             if (!comparisonState) return false;
 
@@ -6769,6 +6907,7 @@
             }
 
             const mainContainer = document.getElementById('editor-content');
+            clearComparisonScrollSync();
             mainContainer.innerHTML = '';
 
             destroyPaneEditors();
@@ -6819,6 +6958,7 @@
                     },
                     parent: mainContainer
                 });
+                setupComparisonScrollSync();
             }
 
             const formatLabel = comparisonFormatEnabled && comparisonState.formatType !== 'none'
@@ -7684,6 +7824,20 @@
                 return;
             }
             await setSplitCompareMode(e.target.value);
+        });
+
+        document.getElementById('comparison-close-left-btn').addEventListener('click', async () => {
+            if (!isSplitEditor || !isComparing) {
+                return;
+            }
+            await closeSplitPane('left');
+        });
+
+        document.getElementById('comparison-close-right-btn').addEventListener('click', async () => {
+            if (!isSplitEditor || !isComparing) {
+                return;
+            }
+            await closeSplitPane('right');
         });
 
         // Dropdown menu for case conversion
