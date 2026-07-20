@@ -790,6 +790,50 @@
             align-items: center;
         }
 
+        .toast-container {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 2000;
+            width: min(380px, calc(100vw - 32px));
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: 10px 14px;
+            border: 1px solid #3e3e42;
+            border-left-width: 4px;
+            border-radius: 5px;
+            background: #252526;
+            color: #f3f3f3;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+            font-size: 13px;
+            line-height: 1.4;
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.16s ease, transform 0.16s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast-success {
+            border-left-color: #3fb950;
+        }
+
+        .toast-error {
+            border-left-color: #f85149;
+        }
+
+        .toast-info {
+            border-left-color: #58a6ff;
+        }
+
         /* Modal styles */
         .modal {
             display: none;
@@ -1027,6 +1071,17 @@
         </div>
 
         <div class="dropdown">
+            <button id="rsa-btn">RSA ▾</button>
+            <div class="dropdown-content" id="rsa-menu">
+                <button id="rsa-encrypt">Encrypt</button>
+                <button id="rsa-decrypt">Decrypt</button>
+                <button id="rsa-sign">Sign</button>
+                <button id="rsa-verify">Verify</button>
+                <button id="rsa-settings">Settings</button>
+            </div>
+        </div>
+
+        <div class="dropdown">
             <button id="qrcode-btn">QR Code ▾</button>
             <div class="dropdown-content" id="qrcode-menu">
                 <button id="generate-qrcode">Generate QR Code</button>
@@ -1135,6 +1190,8 @@
         <span id="status-info">Ready</span>
         <span id="cursor-info">Ln 1, Col 1</span>
     </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <input type="file" id="import-file-upload" />
 
@@ -1364,6 +1421,97 @@
         </div>
     </div>
 
+    <!-- RSA Settings Modal -->
+    <div class="modal" id="rsa-settings-modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>RSA Settings</h2>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">RSA Key:</label>
+                    <select id="rsa-key-select"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
+                        <option value="">Create new key</option>
+                    </select>
+                    <label style="display: block; margin-bottom: 5px;">Key Name:</label>
+                    <input type="text" id="rsa-key-name"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;"
+                        placeholder="Example: Partner RSA dev key" />
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Signature Scheme:</label>
+                    <select id="rsa-signature-scheme"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
+                        <option value="RSASSA-PKCS1-v1_5">RSASSA-PKCS1-v1_5</option>
+                        <option value="RSA-PSS">RSA-PSS</option>
+                    </select>
+                    <label style="display: block; margin-bottom: 5px;">Signature Hash:</label>
+                    <select id="rsa-signature-hash"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                        <option value="SHA-256">SHA-256</option>
+                        <option value="SHA-384">SHA-384</option>
+                        <option value="SHA-512">SHA-512</option>
+                    </select>
+                    <small style="color: #888; display: block; margin-top: 5px;">Encryption uses RSA-OAEP with SHA-256. RSA-PSS uses a salt length equal to the selected hash size.</small>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <button id="rsa-generate-key-btn"
+                        style="padding: 8px 16px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer;">Generate
+                        Key Pair</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 5px;">Public Key (PEM SPKI):</label>
+                    <textarea id="rsa-public-key" rows="6"
+                        style="width: 100%; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
+                        placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----"></textarea>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <button id="rsa-copy-public-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                        <button id="rsa-clear-public-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS#8 or RSA PKCS#1):</label>
+                    <textarea id="rsa-private-key" rows="7"
+                        style="width: 100%; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
+                        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <button id="rsa-copy-private-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Copy</button>
+                        <button id="rsa-clear-private-key-btn" style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
+                    </div>
+                </div>
+                <small style="color: #888; display: block;">At least one key is required. Encrypt/Verify use the public key; Decrypt/Sign use the private key.</small>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-danger" id="rsa-delete-key-btn">Delete Key</button>
+                <button class="btn-secondary" id="rsa-settings-cancel">Cancel</button>
+                <button class="btn-primary" id="rsa-settings-save" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RSA Verify Modal -->
+    <div class="modal" id="rsa-verify-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Verify RSA Signature</h2>
+            </div>
+            <div class="modal-body">
+                <label for="rsa-verify-signature" style="display: block; margin-bottom: 5px;">Detached Signature (Base64):</label>
+                <textarea id="rsa-verify-signature" rows="7"
+                    style="width: 100%; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
+                    placeholder="Paste the Base64 signature returned by RSA Sign"></textarea>
+                <small style="color: #888; display: block; margin-top: 5px;">The selected text, or the full editor content when nothing is selected, will be verified.</small>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="rsa-verify-cancel">Cancel</button>
+                <button class="btn-primary" id="rsa-verify-confirm">Verify</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Generator Settings Modal -->
     <div id="generator-settings-modal" class="modal">
         <div class="modal-content">
@@ -1528,7 +1676,7 @@
 
         // ===== IndexedDB Setup =====
         const DB_NAME = 'CodeEditorDB';
-        const DB_VERSION = 2;
+        const DB_VERSION = 3;
         let db;
 
         function initDB() {
@@ -1564,6 +1712,14 @@
 
                     if (!db.objectStoreNames.contains('jweKeyPairs')) {
                         db.createObjectStore('jweKeyPairs', { keyPath: 'id' });
+                    }
+
+                    if (!db.objectStoreNames.contains('rsaSettings')) {
+                        db.createObjectStore('rsaSettings', { keyPath: 'id' });
+                    }
+
+                    if (!db.objectStoreNames.contains('rsaKeys')) {
+                        db.createObjectStore('rsaKeys', { keyPath: 'id' });
                     }
 
                     if (!db.objectStoreNames.contains('generatorSettings')) {
@@ -2819,10 +2975,61 @@
             isLoading = false;
         }
 
-        function updateStatus(message) {
+        let statusResetTimer = null;
+        let cryptoToastContext = null;
+
+        function inferToastType(message) {
+            if (/failed|invalid|no |requires|unsupported|must |unable|error|expired|blocked|maximum|exceeds|could not|cannot|not available|not found|only works/i.test(message)) {
+                return 'error';
+            }
+            if (/success|verified|saved|generated|decoded|decrypted|encrypted|signed|copied|created|deleted|opened|selected|formatted|converted|read|loaded/i.test(message)) {
+                return 'success';
+            }
+            return 'info';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 0);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 180);
+            }, 3800);
+        }
+
+        async function runCryptoAction(scope, action) {
+            const previousScope = cryptoToastContext;
+            cryptoToastContext = scope;
+            try {
+                return await action();
+            } finally {
+                cryptoToastContext = previousScope;
+            }
+        }
+
+        function updateStatus(message, toastType = null) {
             const statusInfo = document.getElementById('status-info');
             statusInfo.textContent = message;
-            setTimeout(() => {
+            if (message && message !== 'Ready') {
+                const hasCryptoScope = cryptoToastContext
+                    && (message.startsWith(`${cryptoToastContext}:`) || message.startsWith(cryptoToastContext));
+                const toastMessage = hasCryptoScope
+                    ? message
+                    : cryptoToastContext ? `${cryptoToastContext}: ${message}` : message;
+                showToast(toastMessage, toastType || inferToastType(message));
+            }
+            if (statusResetTimer) {
+                clearTimeout(statusResetTimer);
+            }
+            statusResetTimer = setTimeout(() => {
                 statusInfo.textContent = 'Ready';
             }, 3000);
         }
@@ -2853,6 +3060,7 @@
             document.getElementById('format-menu').classList.remove('show');
             document.getElementById('base64-menu').classList.remove('show');
             document.getElementById('hashing-menu').classList.remove('show');
+            document.getElementById('rsa-menu').classList.remove('show');
             document.getElementById('qrcode-menu').classList.remove('show');
             document.getElementById('jwt-menu').classList.remove('show');
             document.getElementById('jwe-menu').classList.remove('show');
@@ -2870,6 +3078,7 @@
                 escape: document.getElementById('escape-unescape-btn'),
                 base64: document.getElementById('base64-btn'),
                 hashing: document.getElementById('hashing-btn'),
+                rsa: document.getElementById('rsa-btn'),
                 qr: document.getElementById('qrcode-btn'),
                 jwt: document.getElementById('jwt-btn'),
                 jwe: document.getElementById('jwe-btn'),
@@ -2892,6 +3101,7 @@
                 setDropdownVisibility(dropdownButtons.escape, false);
                 setDropdownVisibility(dropdownButtons.jwt, false);
                 setDropdownVisibility(dropdownButtons.jwe, false);
+                setDropdownVisibility(dropdownButtons.rsa, false);
                 setDropdownVisibility(dropdownButtons.generator, false);
 
                 setDropdownVisibility(dropdownButtons.base64, true);
@@ -3219,6 +3429,14 @@
 
         let jwtKeyPairs = [];
         let jweKeyPairs = [];
+        let rsaSettings = {
+            signatureScheme: 'RSASSA-PKCS1-v1_5',
+            signatureHash: 'SHA-256',
+            publicKeyPem: '',
+            privateKeyPem: '',
+            activeKeyId: ''
+        };
+        let rsaKeys = [];
 
         async function initJWTSettings() {
             const settings = await loadJWTSettings();
@@ -3609,6 +3827,210 @@
             });
         }
 
+        function loadRSASettings() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['rsaSettings'], 'readonly');
+                const store = transaction.objectStore('rsaSettings');
+                const request = store.get('default');
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function saveRSASettings(settings) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['rsaSettings'], 'readwrite');
+                const store = transaction.objectStore('rsaSettings');
+                const request = store.put({ id: 'default', ...settings });
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function createRSAKeyRecord({ id, name, signatureScheme, signatureHash, publicKeyPem, privateKeyPem, createdAt }) {
+            const timestamp = new Date().toISOString();
+            return {
+                id: id || crypto.randomUUID(),
+                name,
+                signatureScheme: signatureScheme || 'RSASSA-PKCS1-v1_5',
+                signatureHash: signatureHash || 'SHA-256',
+                publicKeyPem: publicKeyPem || '',
+                privateKeyPem: privateKeyPem || '',
+                createdAt: createdAt || timestamp,
+                updatedAt: timestamp
+            };
+        }
+
+        function renderRSAKeyOptions() {
+            const select = document.getElementById('rsa-key-select');
+            select.innerHTML = '<option value="">Create new key</option>';
+            rsaKeys.forEach((key) => {
+                const option = document.createElement('option');
+                option.value = key.id;
+                option.textContent = key.name;
+                select.appendChild(option);
+            });
+            select.value = rsaSettings.activeKeyId || '';
+        }
+
+        function updateRSAKeyActionState() {
+            const isCreateNew = document.getElementById('rsa-key-select').value === '';
+            const hasName = document.getElementById('rsa-key-name').value.trim() !== '';
+            document.getElementById('rsa-delete-key-btn').style.display = isCreateNew ? 'none' : '';
+            document.getElementById('rsa-generate-key-btn').style.display = isCreateNew ? '' : 'none';
+            document.getElementById('rsa-settings-save').disabled = isCreateNew && !hasName;
+        }
+
+        function updateRSASettingsUI() {
+            const activeKey = rsaKeys.find((key) => key.id === rsaSettings.activeKeyId);
+            const key = activeKey || rsaSettings;
+
+            document.getElementById('rsa-signature-scheme').value = key.signatureScheme || 'RSASSA-PKCS1-v1_5';
+            document.getElementById('rsa-signature-hash').value = key.signatureHash || 'SHA-256';
+            document.getElementById('rsa-public-key').value = key.publicKeyPem || '';
+            document.getElementById('rsa-private-key').value = key.privateKeyPem || '';
+            document.getElementById('rsa-key-name').value = activeKey?.name || '';
+            renderRSAKeyOptions();
+            updateRSAKeyActionState();
+        }
+
+        function populateRSAKeyForm(key) {
+            document.getElementById('rsa-signature-scheme').value = key.signatureScheme || 'RSASSA-PKCS1-v1_5';
+            document.getElementById('rsa-signature-hash').value = key.signatureHash || 'SHA-256';
+            document.getElementById('rsa-public-key').value = key.publicKeyPem || '';
+            document.getElementById('rsa-private-key').value = key.privateKeyPem || '';
+            document.getElementById('rsa-key-name').value = key.name || '';
+            updateRSAKeyActionState();
+        }
+
+        function resetRSAKeyFields() {
+            document.getElementById('rsa-key-select').value = '';
+            document.getElementById('rsa-key-name').value = '';
+            document.getElementById('rsa-public-key').value = '';
+            document.getElementById('rsa-private-key').value = '';
+            document.getElementById('rsa-signature-scheme').value = rsaSettings.signatureScheme || 'RSASSA-PKCS1-v1_5';
+            document.getElementById('rsa-signature-hash').value = rsaSettings.signatureHash || 'SHA-256';
+            updateRSAKeyActionState();
+        }
+
+        function selectedRSAKeyHasChanged() {
+            const key = rsaKeys.find((item) => item.id === document.getElementById('rsa-key-select').value);
+            if (!key) return false;
+
+            return key.name !== document.getElementById('rsa-key-name').value.trim()
+                || key.signatureScheme !== document.getElementById('rsa-signature-scheme').value
+                || key.signatureHash !== document.getElementById('rsa-signature-hash').value
+                || (key.publicKeyPem || '') !== document.getElementById('rsa-public-key').value.trim()
+                || (key.privateKeyPem || '') !== document.getElementById('rsa-private-key').value.trim();
+        }
+
+        async function initRSASettings() {
+            const settings = await loadRSASettings();
+            if (settings) {
+                rsaSettings = { ...rsaSettings, ...settings };
+            } else {
+                await saveRSASettings(rsaSettings);
+            }
+            rsaKeys = await loadKeyPairs('rsaKeys');
+            updateRSASettingsUI();
+        }
+
+        async function generateRSAKeyPair() {
+            try {
+                updateStatus('Generating RSA-OAEP 2048-bit key pair...');
+                const keyPair = await crypto.subtle.generateKey({
+                    name: 'RSA-OAEP',
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: 'SHA-256'
+                }, true, ['encrypt', 'decrypt']);
+
+                document.getElementById('rsa-public-key').value = await exportSPKI(keyPair.publicKey);
+                document.getElementById('rsa-private-key').value = await exportPKCS8(keyPair.privateKey);
+                document.getElementById('rsa-key-select').value = '';
+                updateRSAKeyActionState();
+                updateStatus('RSA key pair generated successfully');
+                return true;
+            } catch (error) {
+                updateStatus(`Failed to generate RSA key pair: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function saveCurrentRSAKey() {
+            const name = document.getElementById('rsa-key-name').value.trim();
+            const publicKeyPem = document.getElementById('rsa-public-key').value.trim();
+            const privateKeyPem = document.getElementById('rsa-private-key').value.trim();
+            const signatureScheme = document.getElementById('rsa-signature-scheme').value;
+            const signatureHash = document.getElementById('rsa-signature-hash').value;
+
+            if (!name) {
+                updateStatus('Enter an RSA key name before saving');
+                return false;
+            }
+            if (!publicKeyPem && !privateKeyPem) {
+                updateStatus('RSA key save requires a public key, private key, or both');
+                return false;
+            }
+            if (publicKeyPem && !publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                updateStatus('Invalid RSA public key format. Expected PEM SPKI format.');
+                return false;
+            }
+            if (privateKeyPem && !privateKeyPem.includes('-----BEGIN PRIVATE KEY-----') && !privateKeyPem.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+                updateStatus('Invalid RSA private key format. Expected PEM PKCS#8 or RSA PKCS#1 format.');
+                return false;
+            }
+
+            const selectedId = document.getElementById('rsa-key-select').value;
+            const existingKey = rsaKeys.find((key) => key.id === selectedId);
+            const key = createRSAKeyRecord({
+                id: existingKey?.id,
+                name,
+                signatureScheme,
+                signatureHash,
+                publicKeyPem,
+                privateKeyPem,
+                createdAt: existingKey?.createdAt
+            });
+
+            await saveKeyPair('rsaKeys', key);
+            rsaKeys = await loadKeyPairs('rsaKeys');
+            rsaSettings = {
+                ...rsaSettings,
+                activeKeyId: key.id,
+                signatureScheme,
+                signatureHash,
+                publicKeyPem,
+                privateKeyPem
+            };
+            await saveRSASettings(rsaSettings);
+            updateRSASettingsUI();
+            updateStatus(`RSA key "${name}" saved and set active`);
+            return true;
+        }
+
+        async function deleteSelectedRSAKey() {
+            const id = document.getElementById('rsa-key-select').value;
+            const key = rsaKeys.find((item) => item.id === id);
+            if (!key) {
+                updateStatus('Select a saved RSA key to delete');
+                return false;
+            }
+
+            await deleteKeyPair('rsaKeys', id);
+            rsaKeys = await loadKeyPairs('rsaKeys');
+            if (rsaSettings.activeKeyId === id) {
+                rsaSettings = { ...rsaSettings, activeKeyId: '', publicKeyPem: '', privateKeyPem: '' };
+                await saveRSASettings(rsaSettings);
+            }
+            resetRSAKeyFields();
+            renderRSAKeyOptions();
+            updateStatus(`RSA key "${key.name}" deleted`);
+            return true;
+        }
+
         function calculateExpiration(duration, unit) {
             const now = Math.floor(Date.now() / 1000);
             const multipliers = {
@@ -3740,7 +4162,7 @@
                 }
 
                 try {
-                    normalizeJwtPrivateKeyPem(privateKeyPem, algorithm);
+                    normalizeRsaPrivateKeyPem(privateKeyPem, algorithm);
                 } catch (e) {
                     updateStatus(`Invalid JWT private key: ${e.message}`);
                     return false;
@@ -3963,16 +4385,16 @@
             return derToPem(privateKeyInfo, 'PRIVATE KEY');
         }
 
-        function normalizeJwtPrivateKeyPem(privateKeyPem, algorithm) {
+        function normalizeRsaPrivateKeyPem(privateKeyPem, algorithm) {
             if (privateKeyPem.includes('-----BEGIN PRIVATE KEY-----')) {
                 return privateKeyPem;
             }
 
-            if (algorithm.startsWith('RS') && privateKeyPem.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+            if ((algorithm.startsWith('RS') || algorithm === 'RSA-PSS' || algorithm === 'RSA-OAEP') && privateKeyPem.includes('-----BEGIN RSA PRIVATE KEY-----')) {
                 return convertPkcs1RsaPrivateKeyToPkcs8(privateKeyPem);
             }
 
-            throw new Error('Invalid private key format. Expected PEM PKCS#8 format, or RSA PKCS#1 format for RS algorithms.');
+            throw new Error('Invalid private key format. Expected PEM PKCS#8 format, or RSA PKCS#1 format for RSA algorithms.');
         }
 
         async function getKeyForAlgorithm() {
@@ -4002,7 +4424,7 @@
                     throw new Error(`No private key found. Please generate or paste a key pair in JWT settings.`);
                 }
 
-                const privateKeyPem = normalizeJwtPrivateKeyPem(jwtSettings.privateKeyPem, algorithm);
+                const privateKeyPem = normalizeRsaPrivateKeyPem(jwtSettings.privateKeyPem, algorithm);
 
                 // Import private key from PEM. PKCS#1 RSA keys are converted to PKCS#8 first because WebCrypto imports PKCS#8 private keys.
                 return await importPKCS8(privateKeyPem, algorithm);
@@ -4068,6 +4490,196 @@
             pre.style.padding = '0';
 
             return true;
+        }
+
+        function getRSAEditorRange(emptyMessage) {
+            if (!view) {
+                updateStatus('No editor available');
+                return null;
+            }
+
+            const selection = view.state.selection.main;
+            const hasSelection = selection.anchor !== selection.head;
+            const from = hasSelection ? Math.min(selection.anchor, selection.head) : 0;
+            const to = hasSelection ? Math.max(selection.anchor, selection.head) : view.state.doc.length;
+            const text = view.state.doc.sliceString(from, to);
+            if (!text) {
+                updateStatus(emptyMessage);
+                return null;
+            }
+            return { from, to: to || view.state.doc.length, text };
+        }
+
+        function rsaBytesToBase64(bytes) {
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function rsaBase64ToBytes(value) {
+            const normalized = value.replace(/\s/g, '');
+            if (!normalized || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized) || normalized.length % 4 === 1) {
+                throw new Error('Invalid Base64 input');
+            }
+
+            const binary = atob(normalized);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function rsaHashByteLength(hash) {
+            return { 'SHA-256': 32, 'SHA-384': 48, 'SHA-512': 64 }[hash] || 32;
+        }
+
+        async function importRSAPublicKey(algorithm, usages) {
+            if (!rsaSettings.publicKeyPem?.trim()) {
+                throw new Error('No RSA public key found. Open RSA Settings and add a public key.');
+            }
+            if (!rsaSettings.publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                throw new Error('Invalid RSA public key format. Expected PEM SPKI format.');
+            }
+
+            return crypto.subtle.importKey(
+                'spki',
+                pemToDer(rsaSettings.publicKeyPem, 'PUBLIC KEY'),
+                algorithm,
+                false,
+                usages
+            );
+        }
+
+        async function importRSAPrivateKey(algorithm, usages) {
+            if (!rsaSettings.privateKeyPem?.trim()) {
+                throw new Error('No RSA private key found. Open RSA Settings and add a private key.');
+            }
+
+            const privateKeyPem = normalizeRsaPrivateKeyPem(rsaSettings.privateKeyPem, algorithm.name);
+            return crypto.subtle.importKey(
+                'pkcs8',
+                pemToDer(privateKeyPem, 'PRIVATE KEY'),
+                algorithm,
+                false,
+                usages
+            );
+        }
+
+        async function encryptRSA() {
+            const range = getRSAEditorRange('No content to encrypt');
+            if (!range) return false;
+
+            try {
+                const key = await importRSAPublicKey({ name: 'RSA-OAEP', hash: 'SHA-256' }, ['encrypt']);
+                const data = new TextEncoder().encode(range.text);
+                const maxBytes = Math.floor(key.algorithm.modulusLength / 8) - (2 * rsaHashByteLength('SHA-256')) - 2;
+                if (data.length > maxBytes) {
+                    updateStatus(`RSA-OAEP plaintext is ${data.length} bytes; maximum for this key is ${maxBytes} bytes`);
+                    return false;
+                }
+
+                const ciphertext = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, key, data);
+                const opened = openResultInNewTab('RSA-OAEP Encrypted (Base64)', rsaBytesToBase64(new Uint8Array(ciphertext)));
+                if (opened) updateStatus('RSA-OAEP encryption succeeded (opened in new tab)');
+                return opened;
+            } catch (error) {
+                updateStatus(`RSA encryption failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function decryptRSA() {
+            const range = getRSAEditorRange('No Base64 ciphertext to decrypt');
+            if (!range) return false;
+
+            try {
+                const ciphertext = rsaBase64ToBytes(range.text);
+                const key = await importRSAPrivateKey({ name: 'RSA-OAEP', hash: 'SHA-256' }, ['decrypt']);
+                const plaintext = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, key, ciphertext);
+                const decoded = new TextDecoder('utf-8', { fatal: true }).decode(plaintext);
+                view.dispatch({ changes: { from: range.from, to: range.to, insert: decoded } });
+                updateStatus('RSA-OAEP decryption succeeded');
+                return true;
+            } catch (error) {
+                updateStatus(`RSA decryption failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function signRSA() {
+            const range = getRSAEditorRange('No content to sign');
+            if (!range) return false;
+
+            try {
+                const scheme = rsaSettings.signatureScheme || 'RSASSA-PKCS1-v1_5';
+                const hash = rsaSettings.signatureHash || 'SHA-256';
+                const algorithm = { name: scheme, hash };
+                const key = await importRSAPrivateKey(algorithm, ['sign']);
+                const signAlgorithm = scheme === 'RSA-PSS'
+                    ? { name: scheme, saltLength: rsaHashByteLength(hash) }
+                    : { name: scheme };
+                const signature = await crypto.subtle.sign(signAlgorithm, key, new TextEncoder().encode(range.text));
+                const opened = openResultInNewTab(`RSA ${scheme} ${hash} Signature (Base64)`, rsaBytesToBase64(new Uint8Array(signature)));
+                if (opened) updateStatus(`RSA ${scheme} ${hash} signing succeeded (opened in new tab)`);
+                return opened;
+            } catch (error) {
+                updateStatus(`RSA signing failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        let rsaVerifyText = null;
+
+        function openRSAVerifyModal() {
+            const range = getRSAEditorRange('No content to verify');
+            if (!range) return false;
+
+            rsaVerifyText = range.text;
+            document.getElementById('rsa-verify-signature').value = '';
+            document.getElementById('rsa-verify-modal').style.display = 'flex';
+            document.getElementById('rsa-verify-signature').focus();
+            return true;
+        }
+
+        async function verifyRSA() {
+            const signatureText = document.getElementById('rsa-verify-signature').value;
+            if (!rsaVerifyText) {
+                updateStatus('No content to verify');
+                return false;
+            }
+            if (!signatureText.trim()) {
+                updateStatus('Paste a Base64 RSA signature to verify');
+                return false;
+            }
+
+            try {
+                const scheme = rsaSettings.signatureScheme || 'RSASSA-PKCS1-v1_5';
+                const hash = rsaSettings.signatureHash || 'SHA-256';
+                const algorithm = { name: scheme, hash };
+                const key = await importRSAPublicKey(algorithm, ['verify']);
+                const verifyAlgorithm = scheme === 'RSA-PSS'
+                    ? { name: scheme, saltLength: rsaHashByteLength(hash) }
+                    : { name: scheme };
+                const valid = await crypto.subtle.verify(
+                    verifyAlgorithm,
+                    key,
+                    rsaBase64ToBytes(signatureText),
+                    new TextEncoder().encode(rsaVerifyText)
+                );
+
+                document.getElementById('rsa-verify-modal').style.display = 'none';
+                updateStatus(valid
+                    ? `RSA ${scheme} ${hash} signature verified successfully`
+                    : 'RSA signature verification failed: Invalid signature');
+                return valid;
+            } catch (error) {
+                updateStatus(`RSA signature verification failed: ${error.message}`);
+                return false;
+            }
         }
 
         // ===== JWT Operations =====
@@ -8200,6 +8812,40 @@
             hashingMenu.classList.remove('show');
         });
 
+        // Dropdown menu for RSA
+        const rsaBtn = document.getElementById('rsa-btn');
+        const rsaMenu = document.getElementById('rsa-menu');
+
+        rsaBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rsaMenu.classList.toggle('show');
+        });
+
+        document.getElementById('rsa-encrypt').addEventListener('click', () => {
+            runCryptoAction('RSA', encryptRSA);
+            rsaMenu.classList.remove('show');
+        });
+
+        document.getElementById('rsa-decrypt').addEventListener('click', () => {
+            runCryptoAction('RSA', decryptRSA);
+            rsaMenu.classList.remove('show');
+        });
+
+        document.getElementById('rsa-sign').addEventListener('click', () => {
+            runCryptoAction('RSA', signRSA);
+            rsaMenu.classList.remove('show');
+        });
+
+        document.getElementById('rsa-verify').addEventListener('click', () => {
+            runCryptoAction('RSA', openRSAVerifyModal);
+            rsaMenu.classList.remove('show');
+        });
+
+        document.getElementById('rsa-settings').addEventListener('click', () => {
+            openRSASettings();
+            rsaMenu.classList.remove('show');
+        });
+
         // Dropdown menu for QR Code
         const qrcodeBtn = document.getElementById('qrcode-btn');
         const qrcodeMenu = document.getElementById('qrcode-menu');
@@ -8241,17 +8887,17 @@
         });
 
         document.getElementById('jwt-sign').addEventListener('click', () => {
-            signJWT();
+            runCryptoAction('JWT', signJWT);
             jwtMenu.classList.remove('show');
         });
 
         document.getElementById('jwt-verify').addEventListener('click', () => {
-            verifyJWT();
+            runCryptoAction('JWT', verifyJWT);
             jwtMenu.classList.remove('show');
         });
 
         document.getElementById('jwt-decode').addEventListener('click', () => {
-            decodeJWTWithoutVerify();
+            runCryptoAction('JWT', decodeJWTWithoutVerify);
             jwtMenu.classList.remove('show');
         });
 
@@ -8270,12 +8916,12 @@
         });
 
         document.getElementById('jwe-encrypt').addEventListener('click', () => {
-            encryptJWE();
+            runCryptoAction('JWE', encryptJWE);
             jweMenu.classList.remove('show');
         });
 
         document.getElementById('jwe-decrypt').addEventListener('click', () => {
-            decryptJWE();
+            runCryptoAction('JWE', decryptJWE);
             jweMenu.classList.remove('show');
         });
 
@@ -8463,23 +9109,25 @@
         });
 
         document.getElementById('jwt-settings-save').addEventListener('click', async () => {
-            updateJWTSettingsFromUI();
-            const activeJwtKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
-            if (!activeJwtKeyPair || activeJwtKeyPair.algorithm !== jwtSettings.algorithm || (activeJwtKeyPair.secretKey || '') !== jwtSettings.secretKey || activeJwtKeyPair.publicKeyPem !== jwtSettings.publicKeyPem || activeJwtKeyPair.privateKeyPem !== jwtSettings.privateKeyPem) {
-                jwtSettings.activeKeyPairId = '';
-            }
-
-            if (hasJWTKeyInput() || selectedKeyPairName('jwt') || selectedJWTKeyHasChanged()) {
-                const saved = await saveCurrentJWTKeyPair();
-                if (!saved) {
-                    return;
+            await runCryptoAction('JWT', async () => {
+                updateJWTSettingsFromUI();
+                const activeJwtKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
+                if (!activeJwtKeyPair || activeJwtKeyPair.algorithm !== jwtSettings.algorithm || (activeJwtKeyPair.secretKey || '') !== jwtSettings.secretKey || activeJwtKeyPair.publicKeyPem !== jwtSettings.publicKeyPem || activeJwtKeyPair.privateKeyPem !== jwtSettings.privateKeyPem) {
+                    jwtSettings.activeKeyPairId = '';
                 }
-            } else {
-                await saveJWTSettings(jwtSettings);
-            }
 
-            jwtSettingsModal.style.display = 'none';
-            updateStatus('JWT settings saved');
+                if (hasJWTKeyInput() || selectedKeyPairName('jwt') || selectedJWTKeyHasChanged()) {
+                    const saved = await saveCurrentJWTKeyPair();
+                    if (!saved) {
+                        return;
+                    }
+                } else {
+                    await saveJWTSettings(jwtSettings);
+                }
+
+                jwtSettingsModal.style.display = 'none';
+                updateStatus('JWT settings saved');
+            });
         });
 
         // Algorithm change handler
@@ -8494,7 +9142,7 @@
 
         // Generate key pair button
         document.getElementById('jwt-generate-keypair-btn').addEventListener('click', () => {
-            generateKeyPair();
+            runCryptoAction('JWT', generateKeyPair);
         });
 
         document.getElementById('jwt-keypair-select').addEventListener('change', (e) => {
@@ -8511,21 +9159,21 @@
         });
 
         document.getElementById('jwt-delete-keypair-btn').addEventListener('click', async () => {
-            await deleteSelectedJWTKeyPair();
+            await runCryptoAction('JWT', deleteSelectedJWTKeyPair);
         });
 
         // Copy key buttons
         document.getElementById('jwt-copy-public-key-btn').addEventListener('click', () => {
             const publicKey = document.getElementById('jwt-public-key').value;
             if (publicKey) {
-                copyToClipboard(publicKey, 'Public key');
+                runCryptoAction('JWT', () => copyToClipboard(publicKey, 'Public key'));
             }
         });
 
         document.getElementById('jwt-copy-private-key-btn').addEventListener('click', () => {
             const privateKey = document.getElementById('jwt-private-key').value;
             if (privateKey) {
-                copyToClipboard(privateKey, 'Private key');
+                runCryptoAction('JWT', () => copyToClipboard(privateKey, 'Private key'));
             }
         });
 
@@ -8560,23 +9208,25 @@
         });
 
         document.getElementById('jwe-settings-save').addEventListener('click', async () => {
-            updateJWESettingsFromUI();
-            const activeJweKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
-            if (!activeJweKeyPair || activeJweKeyPair.algorithm !== jweSettings.algorithm || (activeJweKeyPair.secretKey || '') !== jweSettings.secretKey || activeJweKeyPair.publicKeyPem !== jweSettings.publicKeyPem || activeJweKeyPair.privateKeyPem !== jweSettings.privateKeyPem) {
-                jweSettings.activeKeyPairId = '';
-            }
-
-            if (hasJWEKeyInput() || selectedKeyPairName('jwe') || selectedJWEKeyHasChanged()) {
-                const saved = await saveCurrentJWEKeyPair();
-                if (!saved) {
-                    return;
+            await runCryptoAction('JWE', async () => {
+                updateJWESettingsFromUI();
+                const activeJweKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
+                if (!activeJweKeyPair || activeJweKeyPair.algorithm !== jweSettings.algorithm || (activeJweKeyPair.secretKey || '') !== jweSettings.secretKey || activeJweKeyPair.publicKeyPem !== jweSettings.publicKeyPem || activeJweKeyPair.privateKeyPem !== jweSettings.privateKeyPem) {
+                    jweSettings.activeKeyPairId = '';
                 }
-            } else {
-                await saveJWESettings(jweSettings);
-            }
 
-            jweSettingsModal.style.display = 'none';
-            updateStatus('JWE settings saved');
+                if (hasJWEKeyInput() || selectedKeyPairName('jwe') || selectedJWEKeyHasChanged()) {
+                    const saved = await saveCurrentJWEKeyPair();
+                    if (!saved) {
+                        return;
+                    }
+                } else {
+                    await saveJWESettings(jweSettings);
+                }
+
+                jweSettingsModal.style.display = 'none';
+                updateStatus('JWE settings saved');
+            });
         });
 
         document.getElementById('jwe-algorithm').addEventListener('change', () => {
@@ -8584,7 +9234,7 @@
         });
 
         document.getElementById('jwe-generate-keypair-btn').addEventListener('click', () => {
-            generateJWEKeyPair();
+            runCryptoAction('JWE', generateJWEKeyPair);
         });
 
         document.getElementById('jwe-keypair-select').addEventListener('change', (e) => {
@@ -8601,7 +9251,7 @@
         });
 
         document.getElementById('jwe-delete-keypair-btn').addEventListener('click', async () => {
-            await deleteSelectedJWEKeyPair();
+            await runCryptoAction('JWE', deleteSelectedJWEKeyPair);
         });
 
         // JWE Auto Exp checkbox handler
@@ -8613,6 +9263,102 @@
         jweSettingsModal.addEventListener('click', (e) => {
             if (e.target === jweSettingsModal) {
                 jweSettingsModal.style.display = 'none';
+            }
+        });
+
+        // RSA Settings Modal
+        const rsaSettingsModal = document.getElementById('rsa-settings-modal');
+        const rsaVerifyModal = document.getElementById('rsa-verify-modal');
+
+        function openRSASettings() {
+            updateRSASettingsUI();
+            rsaSettingsModal.style.display = 'flex';
+        }
+
+        document.getElementById('rsa-settings-cancel').addEventListener('click', () => {
+            rsaSettingsModal.style.display = 'none';
+        });
+
+        document.getElementById('rsa-settings-save').addEventListener('click', async () => {
+            await runCryptoAction('RSA', async () => {
+                const hasDraft = document.getElementById('rsa-key-name').value.trim()
+                    || document.getElementById('rsa-public-key').value.trim()
+                    || document.getElementById('rsa-private-key').value.trim()
+                    || selectedRSAKeyHasChanged();
+
+                if (hasDraft) {
+                    const saved = await saveCurrentRSAKey();
+                    if (!saved) return;
+                } else {
+                    await saveRSASettings(rsaSettings);
+                }
+
+                rsaSettingsModal.style.display = 'none';
+                updateStatus('RSA settings saved');
+            });
+        });
+
+        document.getElementById('rsa-generate-key-btn').addEventListener('click', () => {
+            runCryptoAction('RSA', generateRSAKeyPair);
+        });
+
+        document.getElementById('rsa-key-select').addEventListener('change', (event) => {
+            const key = rsaKeys.find((item) => item.id === event.target.value);
+            if (key) {
+                populateRSAKeyForm(key);
+            } else {
+                resetRSAKeyFields();
+            }
+        });
+
+        document.getElementById('rsa-key-name').addEventListener('input', () => {
+            updateRSAKeyActionState();
+        });
+
+        document.getElementById('rsa-delete-key-btn').addEventListener('click', async () => {
+            await runCryptoAction('RSA', deleteSelectedRSAKey);
+        });
+
+        document.getElementById('rsa-copy-public-key-btn').addEventListener('click', () => {
+            const value = document.getElementById('rsa-public-key').value;
+            if (value) runCryptoAction('RSA', () => copyToClipboard(value, 'RSA public key'));
+        });
+
+        document.getElementById('rsa-copy-private-key-btn').addEventListener('click', () => {
+            const value = document.getElementById('rsa-private-key').value;
+            if (value) runCryptoAction('RSA', () => copyToClipboard(value, 'RSA private key'));
+        });
+
+        document.getElementById('rsa-clear-public-key-btn').addEventListener('click', () => {
+            document.getElementById('rsa-public-key').value = '';
+        });
+
+        document.getElementById('rsa-clear-private-key-btn').addEventListener('click', () => {
+            document.getElementById('rsa-private-key').value = '';
+        });
+
+        rsaSettingsModal.addEventListener('click', (event) => {
+            if (event.target === rsaSettingsModal) {
+                rsaSettingsModal.style.display = 'none';
+            }
+        });
+
+        document.getElementById('rsa-verify-cancel').addEventListener('click', () => {
+            rsaVerifyText = null;
+            rsaVerifyModal.style.display = 'none';
+        });
+
+        document.getElementById('rsa-verify-confirm').addEventListener('click', async () => {
+            const verified = await runCryptoAction('RSA', verifyRSA);
+            if (verified || document.getElementById('rsa-verify-modal').style.display === 'none') {
+                rsaVerifyText = null;
+            }
+        });
+
+        rsaVerifyModal.addEventListener('click', (event) => {
+            if (event.target === rsaVerifyModal) {
+                rsaVerifyText = null;
+                rsaVerifyModal.style.display = 'none';
             }
         });
 
@@ -8697,11 +9443,11 @@
             base64Decode: () => decodeBase64Preview(),
             sha256: () => hashSHA256ToTab(),
             qrGenerate: () => generateQRCode(),
-            jwtSign: () => signJWT(),
-            jwtVerify: () => verifyJWT(),
-            jwtDecode: () => decodeJWTWithoutVerify(),
-            jweEncrypt: () => encryptJWE(),
-            jweDecrypt: () => decryptJWE()
+            jwtSign: () => runCryptoAction('JWT', signJWT),
+            jwtVerify: () => runCryptoAction('JWT', verifyJWT),
+            jwtDecode: () => runCryptoAction('JWT', decodeJWTWithoutVerify),
+            jweEncrypt: () => runCryptoAction('JWE', encryptJWE),
+            jweDecrypt: () => runCryptoAction('JWE', decryptJWE)
         };
 
         function readQueryShortcut() {
@@ -8791,6 +9537,7 @@
             await initDB();
             await initJWTSettings();
             await initJWESettings();
+            await initRSASettings();
             await initGeneratorSettings();
             await initFormatSettings();
             await initAppSettings();
