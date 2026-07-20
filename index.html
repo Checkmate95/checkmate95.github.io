@@ -5,31 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CodeMirror 6 Editor</title>
-    <script type="importmap">
-    {
-        "imports": {
-            "codemirror": "https://esm.sh/codemirror@6.0.1",
-            "@codemirror/view": "https://esm.sh/@codemirror/view@6.26.3",
-            "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.4.0",
-            "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",
-            "@codemirror/language": "https://esm.sh/@codemirror/language@6.10.1",
-            "@codemirror/search": "https://esm.sh/@codemirror/search@6.5.6",
-            "@codemirror/lang-html": "https://esm.sh/@codemirror/lang-html@6.4.8",
-            "@codemirror/lang-json": "https://esm.sh/@codemirror/lang-json@6.0.1",
-            "@codemirror/lang-xml": "https://esm.sh/@codemirror/lang-xml@6.1.0",
-            "@codemirror/lang-yaml": "https://esm.sh/@codemirror/lang-yaml@6.1.2",
-            "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6.1.2",
-            "@codemirror/merge": "https://esm.sh/@codemirror/merge@6",
-            "@codemirror/lint": "https://esm.sh/@codemirror/lint@6.8.4",
-            "qrcode": "https://esm.sh/qrcode@1.5.3",
-            "jsqr": "https://esm.sh/jsqr@1.4.0",
-            "jose": "https://esm.sh/jose@5",
-            "randexp": "https://esm.sh/randexp@0.5.1",
-            "js-yaml": "https://esm.sh/js-yaml@4.1.0",
-            "@jsquash/oxipng": "https://esm.sh/@jsquash/oxipng@2.3.0"
-        }
-    }
-    </script>
     <style>
         * {
             margin: 0;
@@ -1654,25 +1629,45 @@
     </div>
 
     <script type="module">
-        import { EditorView, basicSetup } from 'codemirror';
-        import { keymap } from '@codemirror/view';
-        import { indentWithTab, indentMore, indentLess } from '@codemirror/commands';
-        import { Transaction, EditorSelection } from '@codemirror/state';
-        import { html } from '@codemirror/lang-html';
-        import { json } from '@codemirror/lang-json';
-        import { xml } from '@codemirror/lang-xml';
-        import { yaml } from '@codemirror/lang-yaml';
-        import { oneDark } from '@codemirror/theme-one-dark';
-        import { search, highlightSelectionMatches } from '@codemirror/search';
-        import { MergeView, unifiedMergeView } from '@codemirror/merge';
-        import { linter, lintGutter } from '@codemirror/lint';
-        import * as jsYaml from 'js-yaml';
-        import QRCode from 'qrcode';
-        import jsQR from 'jsqr';
-        import * as jose from 'jose';
-        import { optimise as optimisePng } from '@jsquash/oxipng';
-        import { exportSPKI, exportPKCS8, importSPKI, importPKCS8 } from 'jose';
-        import RandExp from 'randexp';
+        import {
+            EditorView,
+            basicSetup,
+            keymap,
+            indentWithTab,
+            indentMore,
+            indentLess,
+            Transaction,
+            EditorSelection,
+            html,
+            json,
+            xml,
+            yaml,
+            oneDark,
+            search,
+            highlightSelectionMatches,
+            MergeView,
+            unifiedMergeView,
+            linter,
+            lintGutter,
+            jsYaml,
+            QRCode,
+            jsQR,
+            jose,
+            optimisePng,
+            exportSPKI,
+            exportPKCS8,
+            importSPKI,
+            importPKCS8,
+            RandExp
+        } from './vendor/dependencies.js';
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch((error) => {
+                    console.warn('Offline cache could not be registered:', error);
+                });
+            });
+        }
 
         // ===== IndexedDB Setup =====
         const DB_NAME = 'CodeEditorDB';
