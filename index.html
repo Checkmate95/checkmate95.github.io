@@ -343,12 +343,55 @@
             cursor: grabbing;
         }
 
+        .editor-drop-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            display: none;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(18, 18, 18, 0.82);
+        }
+
+        .editor-drop-overlay.show {
+            display: flex;
+        }
+
+        .editor-drop-target {
+            flex: 1;
+            min-width: 0;
+            border: 2px dashed #6b6b6b;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(37, 37, 38, 0.94);
+            color: #d4d4d4;
+            font-size: 14px;
+            font-weight: 600;
+            transition: border-color 0.12s ease, background 0.12s ease;
+        }
+
+        .editor-drop-target::before {
+            content: '📄';
+            font-size: 26px;
+        }
+
+        .editor-drop-target.drag-over {
+            border-color: #007acc;
+            background: rgba(9, 71, 113, 0.96);
+            color: #ffffff;
+        }
+
         /* Split view styles */
         #editor-container {
             flex: 1;
             overflow: auto;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         #editor-container.editor-split {
@@ -1081,6 +1124,10 @@
                 </div>
             </div>
             <div id="editor-content" class="editor-content"></div>
+            <div id="editor-drop-overlay" class="editor-drop-overlay" aria-hidden="true">
+                <div class="editor-drop-target" data-pane="left">Open on left</div>
+                <div class="editor-drop-target" data-pane="right">Open on right</div>
+            </div>
         </div>
     </div>
 
@@ -2056,6 +2103,7 @@
         let currentLanguage = 'plaintext';
         let isSplitSyncing = false;
         let fileTreeRenderSequence = 0;
+        const EDITOR_FILE_DRAG_TYPE = 'application/x-universal-editor-file';
 
         // Temporary file management - files not yet saved to IndexedDB
         let tempFiles = new Map(); // Map<tempId, {name, content, type}> - temporary unsaved files
@@ -6389,6 +6437,14 @@
             await openFileInPane(id, pane);
         }
 
+        async function openFileInSplitPane(id, pane) {
+            if (pane !== 'left' && pane !== 'right') return;
+            if (!isSplitEditor) {
+                await setSplitView(true);
+            }
+            await openFile(id, pane);
+        }
+
         async function saveCurrentFile() {
             const file = await getItem(currentFileId);
             if (!file) return;
@@ -7125,8 +7181,11 @@
 
                 // Drag start - store the dragged item ID
                 div.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.effectAllowed = item.type === 'file' ? 'copyMove' : 'move';
                     e.dataTransfer.setData('text/plain', item.id);
+                    if (item.type === 'file') {
+                        e.dataTransfer.setData(EDITOR_FILE_DRAG_TYPE, String(item.id));
+                    }
                     div.classList.add('dragging');
                 });
 
@@ -7136,6 +7195,7 @@
                     document.querySelectorAll('.drag-over').forEach(el => {
                         el.classList.remove('drag-over');
                     });
+                    hideEditorDropOverlay();
                 });
 
                 // Only folders can be drop targets
@@ -7720,7 +7780,7 @@
             return mimeType.startsWith('image/') || mimeType === 'application/pdf';
         }
 
-        async function createImportedTempFile(fileName, content, statusMessage, importMetadata = null) {
+        async function createImportedTempFile(fileName, content, statusMessage, importMetadata = null, pane = null) {
             const tempId = nextTempId--;
             tempFiles.set(tempId, {
                 id: tempId,
@@ -7734,18 +7794,22 @@
                 updatedAt: new Date()
             });
 
-            await openFile(tempId);
+            if (pane) {
+                await openFileInSplitPane(tempId, pane);
+            } else {
+                await openFile(tempId);
+            }
             isDirty = true;
             fileDirtyState.set(tempId, true);
             updateStatus(statusMessage);
         }
 
-        async function importFileAsText(file) {
+        async function importFileAsText(file, pane = null) {
             const content = await readFileAsText(file);
-            await createImportedTempFile(file.name, content, `Imported text file: ${file.name}`);
+            await createImportedTempFile(file.name, content, `Imported text file: ${file.name}`, null, pane);
         }
 
-        async function importFileAsBinarySummary(file, buffer = null) {
+        async function importFileAsBinarySummary(file, buffer = null, pane = null) {
             const sourceBuffer = buffer ?? await readFileAsArrayBuffer(file);
             const byteLength = sourceBuffer.byteLength;
             const byteArray = new Uint8Array(sourceBuffer);
@@ -7763,18 +7827,19 @@
                     mimeType,
                     size: byteLength,
                     binaryBytes
-                }
+                },
+                pane
             );
         }
 
-        async function importExternalFile(file) {
+        async function importExternalFile(file, pane = null) {
             const buffer = await readFileAsArrayBuffer(file);
             const mimeType = resolveImportedBinaryMimeType(file.type, new Uint8Array(buffer));
 
             if (shouldImportAsBinary(mimeType)) {
-                await importFileAsBinarySummary(file, buffer);
+                await importFileAsBinarySummary(file, buffer, pane);
             } else {
-                await importFileAsText(file);
+                await importFileAsText(file, pane);
             }
         }
 
@@ -7800,6 +7865,110 @@
             return Array.from(dataTransfer?.types || []).includes('Files');
         }
 
+        function hasInternalDraggedFile(dataTransfer) {
+            return Array.from(dataTransfer?.types || []).includes(EDITOR_FILE_DRAG_TYPE);
+        }
+
+        function isEditorFileDrag(dataTransfer) {
+            return hasExternalDraggedFiles(dataTransfer) || hasInternalDraggedFile(dataTransfer);
+        }
+
+        function showEditorDropOverlay() {
+            const overlay = document.getElementById('editor-drop-overlay');
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+
+        function hideEditorDropOverlay() {
+            const overlay = document.getElementById('editor-drop-overlay');
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.querySelectorAll('.editor-drop-target').forEach((target) => {
+                target.classList.remove('drag-over');
+            });
+        }
+
+        async function handleEditorPaneDrop(event, pane) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const internalFileId = Number.parseInt(
+                event.dataTransfer.getData(EDITOR_FILE_DRAG_TYPE),
+                10
+            );
+            const externalFiles = Array.from(event.dataTransfer.files || []);
+            hideEditorDropOverlay();
+
+            if (Number.isInteger(internalFileId)) {
+                const file = await getItem(internalFileId);
+                if (file?.type !== 'file') {
+                    updateStatus('Only files can be opened in an editor pane');
+                    return;
+                }
+                await openFileInSplitPane(internalFileId, pane);
+                return;
+            }
+
+            for (const file of externalFiles) {
+                try {
+                    await importExternalFile(file, pane);
+                } catch (error) {
+                    updateStatus(error.message || `Failed to import ${file.name}`);
+                    return;
+                }
+            }
+
+            if (externalFiles.length > 1) {
+                updateStatus(`Imported ${externalFiles.length} files on the ${pane}`);
+            }
+        }
+
+        function initEditorFileDropZone() {
+            const editorContainer = document.getElementById('editor-container');
+            const overlay = document.getElementById('editor-drop-overlay');
+
+            editorContainer.addEventListener('dragenter', (event) => {
+                if (!isEditorFileDrag(event.dataTransfer)) return;
+                event.preventDefault();
+                showEditorDropOverlay();
+            });
+
+            editorContainer.addEventListener('dragover', (event) => {
+                if (!isEditorFileDrag(event.dataTransfer)) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+                showEditorDropOverlay();
+            });
+
+            editorContainer.addEventListener('dragleave', (event) => {
+                if (!editorContainer.contains(event.relatedTarget)) {
+                    hideEditorDropOverlay();
+                }
+            });
+
+            overlay.querySelectorAll('.editor-drop-target').forEach((target) => {
+                target.addEventListener('dragenter', (event) => {
+                    if (!isEditorFileDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    target.classList.add('drag-over');
+                });
+                target.addEventListener('dragover', (event) => {
+                    if (!isEditorFileDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = 'copy';
+                });
+                target.addEventListener('dragleave', () => {
+                    target.classList.remove('drag-over');
+                });
+                target.addEventListener('drop', async (event) => {
+                    await handleEditorPaneDrop(event, target.dataset.pane);
+                });
+            });
+
+            window.addEventListener('dragend', hideEditorDropOverlay);
+        }
+
         function initApplicationFileDropZone() {
             window.addEventListener('dragover', (event) => {
                 if (!hasExternalDraggedFiles(event.dataTransfer)) {
@@ -7812,6 +7981,7 @@
 
             window.addEventListener('drop', async (event) => {
                 const files = Array.from(event.dataTransfer?.files || []);
+                hideEditorDropOverlay();
                 if (files.length === 0) {
                     return;
                 }
@@ -8645,6 +8815,7 @@
                 didOpenOrCreate = true;
             }
             initFileTreeDropZone();
+            initEditorFileDropZone();
             initApplicationFileDropZone();
             if (!handledShortcut && !didOpenOrCreate) {
                 updateStatus('Ready');
