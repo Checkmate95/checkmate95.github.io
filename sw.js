@@ -31,24 +31,30 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    const updateCacheInBackground = fetch(event.request)
+        .then((networkResponse) => {
+            if (networkResponse.ok) {
+                const responseToCache = networkResponse.clone();
+                return caches.open(CACHE_NAME)
+                    .then((cache) => cache.put(event.request, responseToCache))
+                    .then(() => networkResponse);
+            }
+            return networkResponse;
+        })
+        .catch(() => null);
+
+    event.waitUntil(updateCacheInBackground);
     event.respondWith(
-        fetch(event.request)
-            .then((networkResponse) => {
-                if (networkResponse.ok) {
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-                }
-                return networkResponse;
-            })
-            .catch(() => {
-                return caches.match(event.request).then((cachedResponse) => {
-                    if (cachedResponse) {
-                        return cachedResponse;
-                    }
-                    return event.request.mode === 'navigate'
-                        ? caches.match('./index.html')
-                        : Response.error();
-                });
-            })
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+
+            return updateCacheInBackground.then((networkResponse) => networkResponse || (
+                event.request.mode === 'navigate'
+                    ? caches.match('./index.html')
+                    : Response.error()
+            ));
+        })
     );
 });

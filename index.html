@@ -319,8 +319,8 @@
         }
 
         .editor-drop-overlay {
-            position: absolute;
-            inset: 0;
+            position: fixed;
+            inset: auto;
             z-index: 50;
             display: none;
             gap: 10px;
@@ -1663,7 +1663,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch((error) => {
+                navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch((error) => {
                     console.warn('Offline cache could not be registered:', error);
                 });
             });
@@ -3010,10 +3010,10 @@
             }
         }
 
-        function updateStatus(message, toastType = null) {
+        function updateStatus(message, toastType = null, { showToastMessage = true } = {}) {
             const statusInfo = document.getElementById('status-info');
             statusInfo.textContent = message;
-            if (message && message !== 'Ready') {
+            if (message && message !== 'Ready' && showToastMessage) {
                 const hasCryptoScope = cryptoToastContext
                     && (message.startsWith(`${cryptoToastContext}:`) || message.startsWith(cryptoToastContext));
                 const toastMessage = hasCryptoScope
@@ -7036,7 +7036,7 @@
             }
 
             renderFileTree();
-            updateStatus(`Opened ${file.name}`);
+            updateStatus(`Opened ${file.name}`, null, { showToastMessage: false });
         }
 
         async function openFile(id, paneOverride = null) {
@@ -7374,7 +7374,7 @@
                 await renderFileTree();
                 const draggedItem = await getItem(draggedId);
                 const destination = targetFolderName || 'root';
-                updateStatus(`Moved ${draggedItem.name} to ${destination}`);
+                updateStatus(`Moved ${draggedItem.name} to ${destination}`, null, { showToastMessage: false });
                 return true;
             } else {
                 updateStatus('Cannot move item here');
@@ -8481,7 +8481,14 @@
         }
 
         function showEditorDropOverlay() {
+            const editorContainer = document.getElementById('editor-container');
             const overlay = document.getElementById('editor-drop-overlay');
+            const bounds = editorContainer.getBoundingClientRect();
+
+            overlay.style.top = `${bounds.top}px`;
+            overlay.style.left = `${bounds.left}px`;
+            overlay.style.width = `${bounds.width}px`;
+            overlay.style.height = `${bounds.height}px`;
             overlay.classList.add('show');
             overlay.setAttribute('aria-hidden', 'false');
         }
@@ -8574,6 +8581,11 @@
             });
 
             window.addEventListener('dragend', hideEditorDropOverlay);
+            window.addEventListener('resize', () => {
+                if (overlay.classList.contains('show')) {
+                    showEditorDropOverlay();
+                }
+            });
         }
 
         function initApplicationFileDropZone() {
