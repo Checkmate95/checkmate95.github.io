@@ -432,6 +432,15 @@
         #editor-container.editor-split .pane-content {
             flex: 1;
             min-height: 0;
+            display: flex;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        #editor-container.editor-split .pane-content > .cm-editor {
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
         }
 
         .binary-preview {
@@ -2439,7 +2448,7 @@
                 basicSetup,
                 lintGutter(), // Add lint gutter for error markers
                 keymap.of([indentWithTab]),
-                search({ top: true }),
+                search({ top: false }),
                 highlightSelectionMatches(),
                 EditorView.domEventHandlers({
                     focus: () => {
@@ -7571,14 +7580,14 @@
 
             const leftExtensions = [
                 basicSetup,
-                search({ top: true }),
+                search({ top: false }),
                 highlightSelectionMatches(),
                 EditorView.editable.of(false)
             ];
 
             const rightExtensions = [
                 basicSetup,
-                search({ top: true }),
+                search({ top: false }),
                 highlightSelectionMatches(),
                 EditorView.editable.of(false)
             ];
@@ -7619,7 +7628,7 @@
             if (comparisonViewMode === 'inline') {
                 const inlineExtensions = [
                     basicSetup,
-                    search({ top: true }),
+                    search({ top: false }),
                     highlightSelectionMatches(),
                     EditorView.editable.of(false),
                     unifiedMergeView({ original: leftContent })
