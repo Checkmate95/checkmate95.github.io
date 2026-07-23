@@ -649,6 +649,19 @@
 
         #editor-container:not(.split-view) .editor-content {
             flex-grow: 1;
+            min-height: 0;
+            display: flex;
+        }
+
+        #editor-container:not(.split-view) .editor-content > .cm-editor {
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #editor-container:not(.split-view) .editor-content > .cm-editor > .cm-scroller {
+            flex: 1 1 auto;
+            min-height: 0;
         }
 
         /* Diff highlighting styles */
@@ -1680,7 +1693,7 @@
 
         // ===== IndexedDB Setup =====
         const DB_NAME = 'CodeEditorDB';
-        const DB_VERSION = 3;
+        const DB_VERSION = 5;
         let db;
 
         function initDB() {
