@@ -4899,32 +4899,8 @@
             }
 
             try {
-                // Parse the content as JSON for the payload
-                let payload;
-                try {
-                    payload = JSON.parse(text);
-                } catch (e) {
-                    updateStatus('Content must be valid JSON for JWE payload');
-                    return false;
-                }
-
                 const algorithm = jweSettings.algorithm || 'dir';
-
-                // Create JWE builder
-                let jweBuilder = new jose.EncryptJWT(payload);
-
-                // Add auto IAT if enabled
-                if (jweSettings.autoIat) {
-                    jweBuilder = jweBuilder.setIssuedAt();
-                }
-
-                // Add auto EXP if enabled
-                if (jweSettings.autoExp) {
-                    const expString = getExpirationString(jweSettings.expDuration, jweSettings.expUnit);
-                    jweBuilder = jweBuilder.setExpirationTime(expString);
-                }
-
-                let jwe;
+                let encryptKey;
 
                 if (algorithm === 'dir') {
                     // For JWE, use dedicated JWE secret key
@@ -4936,15 +4912,7 @@
                     }
 
                     // Convert string to Uint8Array
-                    const key = new TextEncoder().encode(secretKey);
-
-                    // Encrypt the JWE
-                    jwe = await jweBuilder
-                        .setProtectedHeader({
-                            alg: 'dir',
-                            enc: 'A256GCM'
-                        })
-                        .encrypt(key);
+                    encryptKey = new TextEncoder().encode(secretKey);
                 } else if (algorithm === 'ECDH-ES') {
                     if (!jweSettings.publicKeyPem || jweSettings.publicKeyPem.trim() === '') {
                         updateStatus('JWE requires a recipient public key for ECDH-ES. Please set it in JWE settings.');
@@ -4956,17 +4924,59 @@
                         return false;
                     }
 
-                    const publicKey = await importSPKI(jweSettings.publicKeyPem, 'ECDH-ES');
-
-                    jwe = await jweBuilder
-                        .setProtectedHeader({
-                            alg: 'ECDH-ES',
-                            enc: 'A256GCM'
-                        })
-                        .encrypt(publicKey);
+                    encryptKey = await importSPKI(jweSettings.publicKeyPem, 'ECDH-ES');
                 } else {
                     updateStatus(`Unsupported JWE algorithm: ${algorithm}`);
                     return false;
+                }
+
+                // Check if content is a JSON object to support auto-claims (iat, exp)
+                let isJsonObject = false;
+                let jsonPayload = null;
+                try {
+                    const parsed = JSON.parse(text);
+                    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                        isJsonObject = true;
+                        jsonPayload = parsed;
+                    }
+                } catch {
+                    // Non-JSON payload (e.g. nested JWT, plain text, XML)
+                }
+
+                let jwe;
+
+                if (isJsonObject && (jweSettings.autoIat || jweSettings.autoExp)) {
+                    // Use EncryptJWT to attach automated claims for JSON objects
+                    let jweBuilder = new jose.EncryptJWT(jsonPayload);
+
+                    if (jweSettings.autoIat) {
+                        jweBuilder = jweBuilder.setIssuedAt();
+                    }
+
+                    if (jweSettings.autoExp) {
+                        const expString = getExpirationString(jweSettings.expDuration, jweSettings.expUnit);
+                        jweBuilder = jweBuilder.setExpirationTime(expString);
+                    }
+
+                    jwe = await jweBuilder
+                        .setProtectedHeader({
+                            alg: algorithm,
+                            enc: 'A256GCM'
+                        })
+                        .encrypt(encryptKey);
+                } else {
+                    // Use CompactEncrypt for arbitrary payloads, nested JWTs, arrays, or JSON without auto-claims
+                    const isNestedJwt = /^ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(text);
+                    const protectedHeader = {
+                        alg: algorithm,
+                        enc: 'A256GCM',
+                        ...(isNestedJwt ? { cty: 'JWT' } : {})
+                    };
+
+                    const compactEncrypt = new jose.CompactEncrypt(new TextEncoder().encode(text));
+                    jwe = await compactEncrypt
+                        .setProtectedHeader(protectedHeader)
+                        .encrypt(encryptKey);
                 }
 
                 openResultInNewTab('Encrypted JWE', jwe);
