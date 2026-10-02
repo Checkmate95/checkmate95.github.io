@@ -1341,6 +1341,10 @@
                     <input type="text" id="jwe-keypair-name"
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;"
                         placeholder="Example: Partner ECDH-ES dev key" />
+                    <label style="display: block; margin-bottom: 5px;">Key ID (kid):</label>
+                    <input type="text" id="jwe-keypair-kid"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px; font-family: monospace;"
+                        placeholder="Optional Key ID (e.g., key-2026-01)" />
                 </div>
 
                 <div style="margin-bottom: 15px;">
@@ -1384,6 +1388,11 @@
                 </div>
 
                 <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwe-include-kid" style="margin-right: 8px;" />
+                        <span>Include Key ID (kid) in JWE protected header</span>
+                    </label>
+
                     <label style="display: flex; align-items: center; margin-bottom: 10px;">
                         <input type="checkbox" id="jwe-auto-iat" style="margin-right: 8px;" checked />
                         <span>Auto IAT (Issued At) - Set iat to current time</span>
@@ -3439,6 +3448,8 @@
             publicKeyPem: '',
             privateKeyPem: '',
             activeKeyPairId: '',
+            kid: '',
+            includeKid: false,
             autoIat: true,
             autoExp: false,
             expDuration: 1,
@@ -3532,7 +3543,7 @@
             });
         }
 
-        function createKeyPairRecord({ id, name, algorithm, secretKey, publicKeyPem, privateKeyPem, autoIat, autoExp, expDuration, expUnit, createdAt }) {
+        function createKeyPairRecord({ id, name, algorithm, secretKey, publicKeyPem, privateKeyPem, kid, includeKid, autoIat, autoExp, expDuration, expUnit, createdAt }) {
             const timestamp = new Date().toISOString();
             return {
                 id: id || crypto.randomUUID(),
@@ -3541,6 +3552,8 @@
                 secretKey: secretKey || '',
                 publicKeyPem: publicKeyPem || '',
                 privateKeyPem: privateKeyPem || '',
+                kid: kid || '',
+                includeKid: includeKid !== undefined ? includeKid : false,
                 autoIat: autoIat !== undefined ? autoIat : true,
                 autoExp: autoExp !== undefined ? autoExp : false,
                 expDuration: expDuration || 1,
@@ -3620,6 +3633,8 @@
             jweSettings.secretKey = document.getElementById('jwe-secret-key').value;
             jweSettings.publicKeyPem = document.getElementById('jwe-public-key').value;
             jweSettings.privateKeyPem = document.getElementById('jwe-private-key').value;
+            jweSettings.kid = document.getElementById('jwe-keypair-kid').value.trim();
+            jweSettings.includeKid = document.getElementById('jwe-include-kid').checked;
             jweSettings.autoIat = document.getElementById('jwe-auto-iat').checked;
             jweSettings.autoExp = document.getElementById('jwe-auto-exp').checked;
             jweSettings.expDuration = parseInt(document.getElementById('jwe-exp-duration').value) || 1;
@@ -3661,6 +3676,8 @@
             document.getElementById('jwe-public-key').value = keyPair.publicKeyPem || '';
             document.getElementById('jwe-private-key').value = keyPair.privateKeyPem || '';
             document.getElementById('jwe-keypair-name').value = keyPair.name;
+            document.getElementById('jwe-keypair-kid').value = keyPair.kid || '';
+            document.getElementById('jwe-include-kid').checked = keyPair.includeKid !== undefined ? keyPair.includeKid : Boolean(jweSettings.includeKid);
             document.getElementById('jwe-auto-iat').checked = keyPair.autoIat !== undefined ? keyPair.autoIat : jweSettings.autoIat;
             document.getElementById('jwe-auto-exp').checked = keyPair.autoExp !== undefined ? keyPair.autoExp : jweSettings.autoExp;
             document.getElementById('jwe-exp-duration').value = keyPair.expDuration || jweSettings.expDuration;
@@ -3682,8 +3699,9 @@
             const secretKey = document.getElementById('jwe-secret-key').value.trim();
             const publicKeyPem = document.getElementById('jwe-public-key').value.trim();
             const privateKeyPem = document.getElementById('jwe-private-key').value.trim();
+            const kid = document.getElementById('jwe-keypair-kid').value.trim();
 
-            return algorithm === 'dir' ? Boolean(secretKey) : Boolean(publicKeyPem || privateKeyPem);
+            return algorithm === 'dir' ? Boolean(secretKey || kid) : Boolean(publicKeyPem || privateKeyPem || kid);
         }
 
         function selectedJWTKeyHasChanged() {
@@ -3711,6 +3729,8 @@
 
             return keyPair.name !== selectedKeyPairName('jwe')
                 || keyPair.algorithm !== document.getElementById('jwe-algorithm').value
+                || (keyPair.kid || '') !== document.getElementById('jwe-keypair-kid').value.trim()
+                || (keyPair.includeKid !== undefined ? keyPair.includeKid : false) !== document.getElementById('jwe-include-kid').checked
                 || (keyPair.secretKey || '') !== document.getElementById('jwe-secret-key').value.trim()
                 || (keyPair.publicKeyPem || '') !== document.getElementById('jwe-public-key').value.trim()
                 || (keyPair.privateKeyPem || '') !== document.getElementById('jwe-private-key').value.trim()
@@ -3735,6 +3755,8 @@
             document.getElementById('jwe-public-key').value = '';
             document.getElementById('jwe-private-key').value = '';
             document.getElementById('jwe-keypair-name').value = '';
+            document.getElementById('jwe-keypair-kid').value = '';
+            document.getElementById('jwe-include-kid').checked = false;
             setJWEFormVisibility();
         }
 
@@ -3779,6 +3801,8 @@
             const privateKeyTextarea = document.getElementById('jwe-private-key');
             const keyPairSelect = document.getElementById('jwe-keypair-select');
             const keyPairNameInput = document.getElementById('jwe-keypair-name');
+            const keyPairKidInput = document.getElementById('jwe-keypair-kid');
+            const includeKidCheckbox = document.getElementById('jwe-include-kid');
             const autoIatCheckbox = document.getElementById('jwe-auto-iat');
             const autoExpCheckbox = document.getElementById('jwe-auto-exp');
             const expDurationInput = document.getElementById('jwe-exp-duration');
@@ -3788,6 +3812,8 @@
             secretKeyInput.value = jweSettings.secretKey || '';
             publicKeyTextarea.value = jweSettings.publicKeyPem || '';
             privateKeyTextarea.value = jweSettings.privateKeyPem || '';
+            keyPairKidInput.value = jweSettings.kid || '';
+            includeKidCheckbox.checked = Boolean(jweSettings.includeKid);
             autoIatCheckbox.checked = jweSettings.autoIat;
             autoExpCheckbox.checked = jweSettings.autoExp;
             expDurationInput.value = jweSettings.expDuration;
@@ -3796,6 +3822,8 @@
             const activeKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
             if (activeKeyPair) {
                 keyPairNameInput.value = activeKeyPair.name;
+                keyPairKidInput.value = activeKeyPair.kid || '';
+                includeKidCheckbox.checked = activeKeyPair.includeKid !== undefined ? activeKeyPair.includeKid : Boolean(jweSettings.includeKid);
                 autoIatCheckbox.checked = activeKeyPair.autoIat !== undefined ? activeKeyPair.autoIat : jweSettings.autoIat;
                 autoExpCheckbox.checked = activeKeyPair.autoExp !== undefined ? activeKeyPair.autoExp : jweSettings.autoExp;
                 expDurationInput.value = activeKeyPair.expDuration || jweSettings.expDuration;
@@ -4247,6 +4275,8 @@
             const secretKey = document.getElementById('jwe-secret-key').value.trim();
             const publicKeyPem = document.getElementById('jwe-public-key').value.trim();
             const privateKeyPem = document.getElementById('jwe-private-key').value.trim();
+            const kid = document.getElementById('jwe-keypair-kid').value.trim();
+            const includeKid = document.getElementById('jwe-include-kid').checked;
             const name = selectedKeyPairName('jwe');
 
             if (!name) {
@@ -4288,6 +4318,8 @@
                 secretKey: algorithm === 'dir' ? secretKey : '',
                 publicKeyPem: algorithm.startsWith('ECDH-ES') ? publicKeyPem : '',
                 privateKeyPem: algorithm.startsWith('ECDH-ES') ? privateKeyPem : '',
+                kid,
+                includeKid,
                 autoIat: document.getElementById('jwe-auto-iat').checked,
                 autoExp: document.getElementById('jwe-auto-exp').checked,
                 expDuration: parseInt(document.getElementById('jwe-exp-duration').value) || 1,
@@ -4301,6 +4333,8 @@
             jweSettings.secretKey = keyPair.secretKey;
             jweSettings.publicKeyPem = keyPair.publicKeyPem;
             jweSettings.privateKeyPem = keyPair.privateKeyPem;
+            jweSettings.kid = keyPair.kid || '';
+            jweSettings.includeKid = Boolean(keyPair.includeKid);
             jweSettings.autoIat = keyPair.autoIat;
             jweSettings.autoExp = keyPair.autoExp;
             jweSettings.expDuration = keyPair.expDuration;
@@ -4932,6 +4966,17 @@
                     return false;
                 }
 
+                if (jweSettings.includeKid) {
+                    if (!jweSettings.kid || jweSettings.kid.trim() === '') {
+                        updateStatus('JWE setting requires Key ID (kid) when "Include Key ID" is checked. Please set it in JWE settings.');
+                        return false;
+                    }
+                }
+
+                const kidHeaderParam = (jweSettings.includeKid && jweSettings.kid && jweSettings.kid.trim() !== '')
+                    ? { kid: jweSettings.kid.trim() }
+                    : {};
+
                 // Check if content is a JSON object to support auto-claims (iat, exp)
                 let isJsonObject = false;
                 let jsonPayload = null;
@@ -4963,7 +5008,8 @@
                     jwe = await jweBuilder
                         .setProtectedHeader({
                             alg: algorithm,
-                            enc: 'A256GCM'
+                            enc: 'A256GCM',
+                            ...kidHeaderParam
                         })
                         .encrypt(encryptKey);
                 } else {
@@ -4972,7 +5018,8 @@
                     const protectedHeader = {
                         alg: algorithm,
                         enc: 'A256GCM',
-                        ...(isNestedJwt ? { cty: 'JWT' } : {})
+                        ...(isNestedJwt ? { cty: 'JWT' } : {}),
+                        ...kidHeaderParam
                     };
 
                     const compactEncrypt = new jose.CompactEncrypt(new TextEncoder().encode(text));
@@ -5060,7 +5107,7 @@
                 }
 
                 // Decrypt the JWE using compactDecrypt to allow arbitrary payloads, nested JWTs, and JSON
-                const { plaintext } = await jose.compactDecrypt(text, decryptKey);
+                const { plaintext, protectedHeader } = await jose.compactDecrypt(text, decryptKey);
                 const decodedPayload = new TextDecoder().decode(plaintext);
 
                 let formattedPayload;
@@ -5075,7 +5122,8 @@
                     changes: { from, to, insert: formattedPayload }
                 });
 
-                updateStatus('JWE decrypted successfully');
+                const kidInfo = protectedHeader?.kid ? ` (kid: ${protectedHeader.kid})` : '';
+                updateStatus(`JWE decrypted successfully${kidInfo}`);
                 return true;
             } catch (e) {
                 if (e.code === 'ERR_JWT_EXPIRED') {
@@ -9267,7 +9315,7 @@
             await runCryptoAction('JWE', async () => {
                 updateJWESettingsFromUI();
                 const activeJweKeyPair = findKeyPair(jweKeyPairs, jweSettings.activeKeyPairId);
-                if (!activeJweKeyPair || activeJweKeyPair.algorithm !== jweSettings.algorithm || (activeJweKeyPair.secretKey || '') !== jweSettings.secretKey || activeJweKeyPair.publicKeyPem !== jweSettings.publicKeyPem || activeJweKeyPair.privateKeyPem !== jweSettings.privateKeyPem) {
+                if (!activeJweKeyPair || activeJweKeyPair.algorithm !== jweSettings.algorithm || (activeJweKeyPair.secretKey || '') !== jweSettings.secretKey || activeJweKeyPair.publicKeyPem !== jweSettings.publicKeyPem || activeJweKeyPair.privateKeyPem !== jweSettings.privateKeyPem || (activeJweKeyPair.kid || '') !== (jweSettings.kid || '') || Boolean(activeJweKeyPair.includeKid) !== Boolean(jweSettings.includeKid)) {
                     jweSettings.activeKeyPairId = '';
                 }
 
@@ -9303,6 +9351,14 @@
         });
 
         document.getElementById('jwe-keypair-name').addEventListener('input', () => {
+            updateJWEKeyActionState();
+        });
+
+        document.getElementById('jwe-keypair-kid').addEventListener('input', () => {
+            updateJWEKeyActionState();
+        });
+
+        document.getElementById('jwe-include-kid').addEventListener('change', () => {
             updateJWEKeyActionState();
         });
 
