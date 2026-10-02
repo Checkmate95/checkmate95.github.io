@@ -5037,11 +5037,16 @@
                     return false;
                 }
 
-                // Decrypt the JWE
-                const { payload } = await jose.jwtDecrypt(text, decryptKey);
+                // Decrypt the JWE using compactDecrypt to allow arbitrary payloads, nested JWTs, and JSON
+                const { plaintext } = await jose.compactDecrypt(text, decryptKey);
+                const decodedPayload = new TextDecoder().decode(plaintext);
 
-                // Format the payload as JSON
-                const formattedPayload = JSON.stringify(payload, null, 2);
+                let formattedPayload;
+                try {
+                    formattedPayload = JSON.stringify(JSON.parse(decodedPayload), null, 2);
+                } catch {
+                    formattedPayload = decodedPayload;
+                }
 
                 // Replace content with decrypted payload
                 view.dispatch({
