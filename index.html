@@ -1349,6 +1349,7 @@
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
                         <option value="dir">dir (A256GCM, shared secret)</option>
                         <option value="ECDH-ES">ECDH-ES (A256GCM, EC key agreement)</option>
+                        <option value="ECDH-ES+A256KW">ECDH-ES+A256KW (A256GCM, EC key agreement with A256KW)</option>
                     </select>
                     <small style="color: #888; display: block; margin-top: 5px;">Choose between shared secret or EC key
                         agreement for JWE.</small>
@@ -1368,7 +1369,7 @@
                     <label style="display: block; margin-bottom: 5px;">JWE Public Key (PEM):</label>
                     <textarea id="jwe-public-key"
                         style="width: 100%; height: 100px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
-                        placeholder="Paste recipient public key (PEM) for ECDH-ES..."></textarea>
+                        placeholder="Paste recipient public key (PEM) for ECDH-ES or ECDH-ES+A256KW..."></textarea>
                     <label style="display: block; margin: 10px 0 5px;">JWE Private Key (PEM):</label>
                     <textarea id="jwe-private-key"
                         style="width: 100%; height: 120px; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
@@ -1379,7 +1380,7 @@
                             Key Pair</button>
                     </div>
                     <small style="color: #888; display: block; margin-top: 5px;">Use matching EC keys (e.g., P-256) for
-                        ECDH-ES with A256GCM.</small>
+                        ECDH-ES or ECDH-ES+A256KW with A256GCM.</small>
                 </div>
 
                 <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
@@ -3636,7 +3637,7 @@
         function setJWEFormVisibility() {
             const algorithm = document.getElementById('jwe-algorithm').value;
             document.getElementById('jwe-secret-key-section').style.display = algorithm === 'dir' ? '' : 'none';
-            document.getElementById('jwe-keypair-section').style.display = algorithm === 'ECDH-ES' ? '' : 'none';
+            document.getElementById('jwe-keypair-section').style.display = algorithm.startsWith('ECDH-ES') ? '' : 'none';
             document.getElementById('jwe-exp-config-section').style.display = document.getElementById('jwe-auto-exp').checked ? '' : 'none';
             updateJWEKeyActionState();
         }
@@ -4114,15 +4115,16 @@
         }
 
         async function generateJWEKeyPair() {
-            if (document.getElementById('jwe-algorithm').value !== 'ECDH-ES') {
-                updateStatus('Switch JWE algorithm to ECDH-ES to generate a key pair');
+            const algorithm = document.getElementById('jwe-algorithm').value;
+            if (!algorithm.startsWith('ECDH-ES')) {
+                updateStatus('Switch JWE algorithm to ECDH-ES or ECDH-ES+A256KW to generate a key pair');
                 return false;
             }
 
             try {
-                updateStatus('Generating ECDH-ES key pair...');
+                updateStatus(`Generating ${algorithm} key pair...`);
 
-                const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES', {
+                const { publicKey, privateKey } = await jose.generateKeyPair(algorithm, {
                     crv: 'P-256',
                     extractable: true
                 });
@@ -4135,7 +4137,7 @@
                 document.getElementById('jwe-keypair-select').value = '';
                 setJWEFormVisibility();
 
-                updateStatus('ECDH-ES key pair generated successfully');
+                updateStatus(`${algorithm} key pair generated successfully`);
                 return true;
             } catch (e) {
                 updateStatus(`Failed to generate JWE key pair: ${e.message}`);
@@ -4257,7 +4259,7 @@
                     updateStatus('JWE secret key must be at least 32 characters for dir');
                     return false;
                 }
-            } else if (algorithm === 'ECDH-ES') {
+            } else if (algorithm.startsWith('ECDH-ES')) {
                 if (!publicKeyPem || !privateKeyPem) {
                     updateStatus('JWE key save requires both public and private PEM values');
                     return false;
@@ -4284,8 +4286,8 @@
                 name,
                 algorithm,
                 secretKey: algorithm === 'dir' ? secretKey : '',
-                publicKeyPem: algorithm === 'ECDH-ES' ? publicKeyPem : '',
-                privateKeyPem: algorithm === 'ECDH-ES' ? privateKeyPem : '',
+                publicKeyPem: algorithm.startsWith('ECDH-ES') ? publicKeyPem : '',
+                privateKeyPem: algorithm.startsWith('ECDH-ES') ? privateKeyPem : '',
                 autoIat: document.getElementById('jwe-auto-iat').checked,
                 autoExp: document.getElementById('jwe-auto-exp').checked,
                 expDuration: parseInt(document.getElementById('jwe-exp-duration').value) || 1,
@@ -4913,9 +4915,9 @@
 
                     // Convert string to Uint8Array
                     encryptKey = new TextEncoder().encode(secretKey);
-                } else if (algorithm === 'ECDH-ES') {
+                } else if (algorithm.startsWith('ECDH-ES')) {
                     if (!jweSettings.publicKeyPem || jweSettings.publicKeyPem.trim() === '') {
-                        updateStatus('JWE requires a recipient public key for ECDH-ES. Please set it in JWE settings.');
+                        updateStatus(`JWE requires a recipient public key for ${algorithm}. Please set it in JWE settings.`);
                         return false;
                     }
 
@@ -4924,7 +4926,7 @@
                         return false;
                     }
 
-                    encryptKey = await importSPKI(jweSettings.publicKeyPem, 'ECDH-ES');
+                    encryptKey = await importSPKI(jweSettings.publicKeyPem, algorithm);
                 } else {
                     updateStatus(`Unsupported JWE algorithm: ${algorithm}`);
                     return false;
@@ -5017,7 +5019,17 @@
             }
 
             try {
-                const algorithm = jweSettings.algorithm || 'dir';
+                let headerAlg;
+                try {
+                    const header = jose.decodeProtectedHeader(text);
+                    if (header && header.alg) {
+                        headerAlg = header.alg;
+                    }
+                } catch {
+                    // Ignore header decode error, fallback to settings algorithm
+                }
+
+                const algorithm = headerAlg || jweSettings.algorithm || 'dir';
                 let decryptKey;
 
                 if (algorithm === 'dir') {
@@ -5030,9 +5042,9 @@
 
                     // Convert string to Uint8Array
                     decryptKey = new TextEncoder().encode(secretKey);
-                } else if (algorithm === 'ECDH-ES') {
+                } else if (algorithm.startsWith('ECDH-ES')) {
                     if (!jweSettings.privateKeyPem || jweSettings.privateKeyPem.trim() === '') {
-                        updateStatus('JWE requires a private key for ECDH-ES decryption. Please set it in JWE settings.');
+                        updateStatus(`JWE requires a private key for ${algorithm} decryption. Please set it in JWE settings.`);
                         return false;
                     }
 
@@ -5041,7 +5053,7 @@
                         return false;
                     }
 
-                    decryptKey = await importPKCS8(jweSettings.privateKeyPem, 'ECDH-ES');
+                    decryptKey = await importPKCS8(jweSettings.privateKeyPem, algorithm);
                 } else {
                     updateStatus(`Unsupported JWE algorithm: ${algorithm}`);
                     return false;
