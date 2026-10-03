@@ -1226,6 +1226,10 @@
                     <input type="text" id="jwt-keypair-name"
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;"
                         placeholder="Example: Partner RS256 dev key" />
+                    <label style="display: block; margin-bottom: 5px;">Key ID (kid):</label>
+                    <input type="text" id="jwt-keypair-kid"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px; font-family: monospace;"
+                        placeholder="Optional Key ID (e.g., key-2026-01)" />
                 </div>
 
                 <div style="margin-bottom: 15px;">
@@ -1289,6 +1293,11 @@
                 </div>
 
                 <div style="margin-bottom: 15px; padding-top: 15px; border-top: 1px solid #3e3e42;">
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="jwt-include-kid" style="margin-right: 8px;" />
+                        <span>Include Key ID (kid) in JWT protected header</span>
+                    </label>
+
                     <label style="display: flex; align-items: center; margin-bottom: 10px;">
                         <input type="checkbox" id="jwt-auto-iat" style="margin-right: 8px;" checked />
                         <span>Auto IAT (Issued At) - Set iat to current time</span>
@@ -3435,6 +3444,8 @@
             publicKeyPem: '',
             privateKeyPem: '',
             activeKeyPairId: '',
+            kid: '',
+            includeKid: false,
             autoIat: true,
             autoExp: false,
             expDuration: 1,
@@ -3622,6 +3633,8 @@
             jwtSettings.secretKey = document.getElementById('jwt-secret-key').value;
             jwtSettings.publicKeyPem = document.getElementById('jwt-public-key').value;
             jwtSettings.privateKeyPem = document.getElementById('jwt-private-key').value;
+            jwtSettings.kid = document.getElementById('jwt-keypair-kid').value.trim();
+            jwtSettings.includeKid = document.getElementById('jwt-include-kid').checked;
             jwtSettings.autoIat = document.getElementById('jwt-auto-iat').checked;
             jwtSettings.autoExp = document.getElementById('jwt-auto-exp').checked;
             jwtSettings.expDuration = parseInt(document.getElementById('jwt-exp-duration').value) || 1;
@@ -3663,6 +3676,8 @@
             document.getElementById('jwt-public-key').value = keyPair.publicKeyPem || '';
             document.getElementById('jwt-private-key').value = keyPair.privateKeyPem || '';
             document.getElementById('jwt-keypair-name').value = keyPair.name;
+            document.getElementById('jwt-keypair-kid').value = keyPair.kid || '';
+            document.getElementById('jwt-include-kid').checked = keyPair.includeKid !== undefined ? keyPair.includeKid : Boolean(jwtSettings.includeKid);
             document.getElementById('jwt-auto-iat').checked = keyPair.autoIat !== undefined ? keyPair.autoIat : jwtSettings.autoIat;
             document.getElementById('jwt-auto-exp').checked = keyPair.autoExp !== undefined ? keyPair.autoExp : jwtSettings.autoExp;
             document.getElementById('jwt-exp-duration').value = keyPair.expDuration || jwtSettings.expDuration;
@@ -3690,8 +3705,9 @@
             const secretKey = document.getElementById('jwt-secret-key').value.trim();
             const publicKeyPem = document.getElementById('jwt-public-key').value.trim();
             const privateKeyPem = document.getElementById('jwt-private-key').value.trim();
+            const kid = document.getElementById('jwt-keypair-kid').value.trim();
 
-            return algorithm.startsWith('HS') ? Boolean(secretKey) : Boolean(publicKeyPem || privateKeyPem);
+            return algorithm.startsWith('HS') ? Boolean(secretKey || kid) : Boolean(publicKeyPem || privateKeyPem || kid);
         }
 
         function hasJWEKeyInput() {
@@ -3712,6 +3728,8 @@
 
             return keyPair.name !== selectedKeyPairName('jwt')
                 || keyPair.algorithm !== document.getElementById('jwt-algorithm').value
+                || (keyPair.kid || '') !== document.getElementById('jwt-keypair-kid').value.trim()
+                || (keyPair.includeKid !== undefined ? keyPair.includeKid : false) !== document.getElementById('jwt-include-kid').checked
                 || (keyPair.secretKey || '') !== document.getElementById('jwt-secret-key').value.trim()
                 || (keyPair.publicKeyPem || '') !== document.getElementById('jwt-public-key').value.trim()
                 || (keyPair.privateKeyPem || '') !== document.getElementById('jwt-private-key').value.trim()
@@ -3746,6 +3764,8 @@
             document.getElementById('jwt-public-key').value = '';
             document.getElementById('jwt-private-key').value = '';
             document.getElementById('jwt-keypair-name').value = '';
+            document.getElementById('jwt-keypair-kid').value = '';
+            document.getElementById('jwt-include-kid').checked = false;
             setJWTFormVisibility();
         }
 
@@ -3767,6 +3787,8 @@
             const privateKeyTextarea = document.getElementById('jwt-private-key');
             const keyPairSelect = document.getElementById('jwt-keypair-select');
             const keyPairNameInput = document.getElementById('jwt-keypair-name');
+            const keyPairKidInput = document.getElementById('jwt-keypair-kid');
+            const includeKidCheckbox = document.getElementById('jwt-include-kid');
             const autoIatCheckbox = document.getElementById('jwt-auto-iat');
             const autoExpCheckbox = document.getElementById('jwt-auto-exp');
             const expDurationInput = document.getElementById('jwt-exp-duration');
@@ -3776,6 +3798,8 @@
             secretKeyInput.value = jwtSettings.secretKey || '';
             publicKeyTextarea.value = jwtSettings.publicKeyPem || '';
             privateKeyTextarea.value = jwtSettings.privateKeyPem || '';
+            keyPairKidInput.value = jwtSettings.kid || '';
+            includeKidCheckbox.checked = Boolean(jwtSettings.includeKid);
             autoIatCheckbox.checked = jwtSettings.autoIat;
             autoExpCheckbox.checked = jwtSettings.autoExp;
             expDurationInput.value = jwtSettings.expDuration;
@@ -3784,6 +3808,8 @@
             const activeKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
             if (activeKeyPair) {
                 keyPairNameInput.value = activeKeyPair.name;
+                keyPairKidInput.value = activeKeyPair.kid || '';
+                includeKidCheckbox.checked = activeKeyPair.includeKid !== undefined ? activeKeyPair.includeKid : Boolean(jwtSettings.includeKid);
                 autoIatCheckbox.checked = activeKeyPair.autoIat !== undefined ? activeKeyPair.autoIat : jwtSettings.autoIat;
                 autoExpCheckbox.checked = activeKeyPair.autoExp !== undefined ? activeKeyPair.autoExp : jwtSettings.autoExp;
                 expDurationInput.value = activeKeyPair.expDuration || jwtSettings.expDuration;
@@ -4178,6 +4204,8 @@
             const secretKey = document.getElementById('jwt-secret-key').value.trim();
             const publicKeyPem = document.getElementById('jwt-public-key').value.trim();
             const privateKeyPem = document.getElementById('jwt-private-key').value.trim();
+            const kid = document.getElementById('jwt-keypair-kid').value.trim();
+            const includeKid = document.getElementById('jwt-include-kid').checked;
             const name = selectedKeyPairName('jwt');
 
             if (!name) {
@@ -4225,6 +4253,8 @@
                 secretKey: algorithm.startsWith('HS') ? secretKey : '',
                 publicKeyPem: algorithm.startsWith('HS') ? '' : publicKeyPem,
                 privateKeyPem: algorithm.startsWith('HS') ? '' : privateKeyPem,
+                kid,
+                includeKid,
                 autoIat: document.getElementById('jwt-auto-iat').checked,
                 autoExp: document.getElementById('jwt-auto-exp').checked,
                 expDuration: parseInt(document.getElementById('jwt-exp-duration').value) || 1,
@@ -4238,6 +4268,8 @@
             jwtSettings.secretKey = keyPair.secretKey;
             jwtSettings.publicKeyPem = keyPair.publicKeyPem;
             jwtSettings.privateKeyPem = keyPair.privateKeyPem;
+            jwtSettings.kid = keyPair.kid || '';
+            jwtSettings.includeKid = Boolean(keyPair.includeKid);
             jwtSettings.autoIat = keyPair.autoIat;
             jwtSettings.autoExp = keyPair.autoExp;
             jwtSettings.expDuration = keyPair.expDuration;
@@ -4772,12 +4804,26 @@
                     return false;
                 }
 
+                if (jwtSettings.includeKid) {
+                    if (!jwtSettings.kid || jwtSettings.kid.trim() === '') {
+                        updateStatus('JWT setting requires Key ID (kid) when "Include Key ID" is checked. Please set it in JWT settings.');
+                        return false;
+                    }
+                }
+
+                const kidHeaderParam = (jwtSettings.includeKid && jwtSettings.kid && jwtSettings.kid.trim() !== '')
+                    ? { kid: jwtSettings.kid.trim() }
+                    : {};
+
                 // Get the signing key
                 const key = await getKeyForAlgorithm();
 
                 // Create JWT builder
                 let jwtBuilder = new jose.SignJWT(payload)
-                    .setProtectedHeader({ alg: jwtSettings.algorithm });
+                    .setProtectedHeader({
+                        alg: jwtSettings.algorithm,
+                        ...kidHeaderParam
+                    });
 
                 // Add auto IAT if enabled
                 if (jwtSettings.autoIat) {
@@ -4795,7 +4841,8 @@
 
                 openResultInNewTab('Signed JWT', jwt);
 
-                updateStatus(`JWT signed successfully with ${jwtSettings.algorithm} (opened in new tab)`);
+                const kidInfo = kidHeaderParam.kid ? ` (kid: ${kidHeaderParam.kid})` : '';
+                updateStatus(`JWT signed successfully with ${jwtSettings.algorithm}${kidInfo} (opened in new tab)`);
                 return true;
             } catch (e) {
                 updateStatus(`Failed to sign JWT: ${e.message}`);
@@ -4845,7 +4892,8 @@
                     changes: { from, to, insert: formattedPayload }
                 });
 
-                updateStatus(`JWT verified successfully with ${protectedHeader.alg}`);
+                const kidInfo = protectedHeader?.kid ? ` (kid: ${protectedHeader.kid})` : '';
+                updateStatus(`JWT verified successfully with ${protectedHeader.alg}${kidInfo}`);
                 return true;
             } catch (e) {
                 if (e.code === 'ERR_JWT_EXPIRED') {
@@ -4890,6 +4938,13 @@
                 // Use jose.decodeJwt() which does NOT verify signature
                 const payload = jose.decodeJwt(text);
 
+                let header;
+                try {
+                    header = jose.decodeProtectedHeader(text);
+                } catch {
+                    // Ignore header decode error
+                }
+
                 // Format as pretty JSON
                 const formattedPayload = JSON.stringify(payload, null, 2);
 
@@ -4898,7 +4953,8 @@
                     changes: { from, to, insert: formattedPayload }
                 });
 
-                updateStatus('JWT decoded successfully (signature not verified)');
+                const kidInfo = header?.kid ? ` (kid: ${header.kid})` : '';
+                updateStatus(`JWT decoded successfully${kidInfo} (signature not verified)`);
                 return true;
 
             } catch (e) {
@@ -9216,7 +9272,7 @@
             await runCryptoAction('JWT', async () => {
                 updateJWTSettingsFromUI();
                 const activeJwtKeyPair = findKeyPair(jwtKeyPairs, jwtSettings.activeKeyPairId);
-                if (!activeJwtKeyPair || activeJwtKeyPair.algorithm !== jwtSettings.algorithm || (activeJwtKeyPair.secretKey || '') !== jwtSettings.secretKey || activeJwtKeyPair.publicKeyPem !== jwtSettings.publicKeyPem || activeJwtKeyPair.privateKeyPem !== jwtSettings.privateKeyPem) {
+                if (!activeJwtKeyPair || activeJwtKeyPair.algorithm !== jwtSettings.algorithm || (activeJwtKeyPair.secretKey || '') !== jwtSettings.secretKey || activeJwtKeyPair.publicKeyPem !== jwtSettings.publicKeyPem || activeJwtKeyPair.privateKeyPem !== jwtSettings.privateKeyPem || (activeJwtKeyPair.kid || '') !== (jwtSettings.kid || '') || Boolean(activeJwtKeyPair.includeKid) !== Boolean(jwtSettings.includeKid)) {
                     jwtSettings.activeKeyPairId = '';
                 }
 
@@ -9259,6 +9315,14 @@
         });
 
         document.getElementById('jwt-keypair-name').addEventListener('input', () => {
+            updateJWTKeyActionState();
+        });
+
+        document.getElementById('jwt-keypair-kid').addEventListener('input', () => {
+            updateJWTKeyActionState();
+        });
+
+        document.getElementById('jwt-include-kid').addEventListener('change', () => {
             updateJWTKeyActionState();
         });
 
