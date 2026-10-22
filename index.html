@@ -9626,8 +9626,25 @@
             jweDecrypt: () => runCryptoAction('JWE', decryptJWE)
         };
 
+        function getQueryOrHashParams() {
+            if (window.location.search) {
+                const searchParams = new URLSearchParams(window.location.search);
+                if (searchParams.has('action')) {
+                    return searchParams;
+                }
+            }
+            if (window.location.hash) {
+                const hash = window.location.hash.replace(/^#\??/, '');
+                const hashParams = new URLSearchParams(hash);
+                if (hashParams.has('action')) {
+                    return hashParams;
+                }
+            }
+            return new URLSearchParams(window.location.search);
+        }
+
         function readQueryShortcut() {
-            const params = new URLSearchParams(window.location.search);
+            const params = getQueryOrHashParams();
             const action = params.get('action')?.trim();
             if (!action) return null;
 
@@ -9714,6 +9731,16 @@
                 await action(shortcut);
             } catch (error) {
                 updateStatus(`Shortcut action failed: ${error.message}`);
+            }
+
+            // If parameters were received via hash fragment, replace URL with clean query parameters without reloading
+            if (window.location.hash && window.location.hash.includes('action=')) {
+                const cleanQuery = window.location.hash.replace(/^#\??/, '?');
+                try {
+                    window.history.replaceState(null, '', window.location.pathname + cleanQuery);
+                } catch (e) {
+                    // Ignore if restricted
+                }
             }
 
             return true;
