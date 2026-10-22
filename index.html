@@ -9664,6 +9664,9 @@
                 };
             }
 
+            // Delay 80ms to ensure the window focus transition from Alfred has settled
+            await new Promise(resolve => setTimeout(resolve, 80));
+
             try {
                 const clipboardText = await navigator.clipboard.readText();
                 if (!clipboardText) {
@@ -9676,6 +9679,19 @@
 
                 return { text: clipboardText, canRunAction: true };
             } catch (error) {
+                // If focus transition took slightly longer, retry once after another short delay
+                if (error.name === 'NotAllowedError' || error.message?.includes('focus')) {
+                    await new Promise(resolve => setTimeout(resolve, 80));
+                    try {
+                        const retryText = await navigator.clipboard.readText();
+                        if (retryText) {
+                            return { text: retryText, canRunAction: true };
+                        }
+                    } catch (retryError) {
+                        // Fall through to error handler
+                    }
+                }
+
                 // Clipboard reads often require HTTPS and browser permission; keep the empty file visible for recovery.
                 return {
                     text: '',
