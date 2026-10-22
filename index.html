@@ -9626,25 +9626,10 @@
             jweDecrypt: () => runCryptoAction('JWE', decryptJWE)
         };
 
-        function getQueryOrHashParams() {
-            if (window.location.search) {
-                const searchParams = new URLSearchParams(window.location.search);
-                if (searchParams.has('action')) {
-                    return searchParams;
-                }
-            }
-            if (window.location.hash) {
-                const hash = window.location.hash.replace(/^#\??/, '');
-                const hashParams = new URLSearchParams(hash);
-                if (hashParams.has('action')) {
-                    return hashParams;
-                }
-            }
-            return new URLSearchParams(window.location.search);
-        }
-
-        function readQueryShortcut() {
-            const params = getQueryOrHashParams();
+        function readShortcut() {
+            const hash = window.location.hash.replace(/^#\??/, '');
+            if (!hash) return null;
+            const params = new URLSearchParams(hash);
             const action = params.get('action')?.trim();
             if (!action) return null;
 
@@ -9656,6 +9641,8 @@
                 actionId: params.get('actionId')?.trim() || null
             };
         }
+
+        const readQueryShortcut = readShortcut;
 
         function normalizeShortcutFilename(filename) {
             if (!filename) return null;
@@ -9702,7 +9689,7 @@
         let isProcessingShortcut = false;
 
         async function runQueryShortcutIfPresent() {
-            const shortcut = readQueryShortcut();
+            const shortcut = readShortcut();
             if (!shortcut) return false;
 
             if (shortcut.actionId) {
@@ -9731,16 +9718,6 @@
                 await action(shortcut);
             } catch (error) {
                 updateStatus(`Shortcut action failed: ${error.message}`);
-            }
-
-            // If parameters were received via hash fragment, replace URL with clean query parameters without reloading
-            if (window.location.hash && window.location.hash.includes('action=')) {
-                const cleanQuery = window.location.hash.replace(/^#\??/, '?');
-                try {
-                    window.history.replaceState(null, '', window.location.pathname + cleanQuery);
-                } catch (e) {
-                    // Ignore if restricted
-                }
             }
 
             return true;
