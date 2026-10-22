@@ -9651,6 +9651,40 @@
             return filename.replace(/[\\/]+/g, '-').trim() || null;
         }
 
+        function waitForDocumentFocus(timeoutMs = 3000) {
+            if (document.hasFocus()) return Promise.resolve(true);
+
+            return new Promise((resolve) => {
+                let timer = null;
+                let interval = null;
+
+                const cleanup = () => {
+                    window.removeEventListener('focus', onFocus);
+                    if (interval) clearInterval(interval);
+                    if (timer) clearTimeout(timer);
+                };
+
+                const onFocus = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                window.addEventListener('focus', onFocus, { once: true });
+
+                interval = setInterval(() => {
+                    if (document.hasFocus()) {
+                        cleanup();
+                        resolve(true);
+                    }
+                }, 50);
+
+                timer = setTimeout(() => {
+                    cleanup();
+                    resolve(document.hasFocus());
+                }, timeoutMs);
+            });
+        }
+
         async function resolveShortcutInput(shortcut) {
             if (shortcut.input !== '') {
                 return { text: shortcut.input, canRunAction: true };
@@ -9664,8 +9698,8 @@
                 };
             }
 
-            // Delay 80ms to ensure the window focus transition from Alfred has settled
-            await new Promise(resolve => setTimeout(resolve, 80));
+            // Wait for window focus (handles cross-space Mission Control animations)
+            await waitForDocumentFocus(3000);
 
             try {
                 const clipboardText = await navigator.clipboard.readText();
@@ -9679,19 +9713,6 @@
 
                 return { text: clipboardText, canRunAction: true };
             } catch (error) {
-                // If focus transition took slightly longer, retry once after another short delay
-                if (error.name === 'NotAllowedError' || error.message?.includes('focus')) {
-                    await new Promise(resolve => setTimeout(resolve, 80));
-                    try {
-                        const retryText = await navigator.clipboard.readText();
-                        if (retryText) {
-                            return { text: retryText, canRunAction: true };
-                        }
-                    } catch (retryError) {
-                        // Fall through to error handler
-                    }
-                }
-
                 // Clipboard reads often require HTTPS and browser permission; keep the empty file visible for recovery.
                 return {
                     text: '',
