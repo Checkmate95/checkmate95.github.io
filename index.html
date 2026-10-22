@@ -9635,7 +9635,8 @@
                 action,
                 input: params.get('input') ?? '',
                 filename: params.get('filename')?.trim() || null,
-                formatType: params.get('formatType') || null
+                formatType: params.get('formatType') || null,
+                actionId: params.get('actionId')?.trim() || null
             };
         }
 
@@ -9680,9 +9681,19 @@
             }
         }
 
+        let lastHandledActionId = null;
+        let isProcessingShortcut = false;
+
         async function runQueryShortcutIfPresent() {
             const shortcut = readQueryShortcut();
             if (!shortcut) return false;
+
+            if (shortcut.actionId) {
+                if (shortcut.actionId === lastHandledActionId) {
+                    return false;
+                }
+                lastHandledActionId = shortcut.actionId;
+            }
 
             const action = QUERY_ACTIONS[shortcut.action];
             const filename = normalizeShortcutFilename(shortcut.filename) || await getNextUntitledName();
@@ -9706,6 +9717,37 @@
             }
 
             return true;
+        }
+
+        async function handleUrlChange() {
+            if (isProcessingShortcut) return;
+            const shortcut = readQueryShortcut();
+            if (!shortcut) return;
+            if (shortcut.actionId && shortcut.actionId === lastHandledActionId) return;
+
+            isProcessingShortcut = true;
+            try {
+                await runQueryShortcutIfPresent();
+            } finally {
+                isProcessingShortcut = false;
+            }
+        }
+
+        function initUrlChangeListener() {
+            window.addEventListener('popstate', handleUrlChange);
+            window.addEventListener('hashchange', handleUrlChange);
+            window.addEventListener('focus', handleUrlChange);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    handleUrlChange();
+                }
+            });
+            if (window.navigation) {
+                window.navigation.addEventListener('navigate', () => {
+                    setTimeout(handleUrlChange, 0);
+                });
+            }
+            setInterval(handleUrlChange, 250);
         }
 
         // ===== Initialize =====
@@ -9740,6 +9782,7 @@
             initFileTreeDropZone();
             initEditorFileDropZone();
             initApplicationFileDropZone();
+            initUrlChangeListener();
             if (!handledShortcut && !didOpenOrCreate) {
                 updateStatus('Ready');
             }
