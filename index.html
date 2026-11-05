@@ -1145,7 +1145,7 @@
                 <button id="generate-public-from-private">Generate Public Key from Private Key</button>
                 <button id="export-saved-jwks">Export Saved Keys as JWKS</button>
                 <div class="menu-separator"></div>
-                <button id="verify-jwt-with-jwks">Verify JWT with JWKS...</button>
+                <button id="import-jwks-to-settings">Import JWKS to Settings...</button>
             </div>
         </div>
 
@@ -1259,7 +1259,11 @@
             </div>
             <div class="modal-body">
                 <div id="jwt-key-store-section" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">JWT Key:</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label>JWT Key:</label>
+                        <button id="jwt-import-jwks-btn" type="button"
+                            style="padding: 2px 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 11px;">Import from JWKS...</button>
+                    </div>
                     <select id="jwt-keypair-select"
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
                         <option value="">Create new key</option>
@@ -1320,6 +1324,7 @@
                             <button id="jwt-clear-public-key-btn"
                                 style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
                         </div>
+                        <small style="color: #888; display: block; margin-top: 4px;">Used for verification. Can be left empty if you only need the private key for signing.</small>
                     </div>
                     <div style="margin-bottom: 10px;">
                         <label style="display: block; margin-bottom: 5px;">Private Key (PEM PKCS#8 or RSA PKCS#1) - Paste or
@@ -1336,6 +1341,7 @@
                                 style="padding: 4px 12px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;"
                                 title="Derive public key from this private key and set it in Public Key field">Extract Public Key</button>
                         </div>
+                        <small style="color: #888; display: block; margin-top: 4px;">Used for signing. Can be left empty if you only have a public key for verification.</small>
                     </div>
                 </div>
 
@@ -1388,7 +1394,11 @@
             </div>
             <div class="modal-body">
                 <div id="jwe-key-store-section" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">JWE Key:</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label>JWE Key:</label>
+                        <button id="jwe-import-jwks-btn" type="button"
+                            style="padding: 2px 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 11px;">Import from JWKS...</button>
+                    </div>
                     <select id="jwe-keypair-select"
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; margin-bottom: 8px;">
                         <option value="">Create new key</option>
@@ -1443,6 +1453,7 @@
                             <button id="jwe-clear-public-key-btn"
                                 style="padding: 4px 12px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; cursor: pointer; font-size: 12px;">Clear</button>
                         </div>
+                        <small style="color: #888; display: block; margin-top: 4px;">Used for encryption. Can be left empty if you only need the private key for decryption.</small>
                     </div>
                     <div style="margin-bottom: 10px;">
                         <label style="display: block; margin-bottom: 5px;">JWE Private Key (PEM PKCS#8 or RSA PKCS#1) - Paste or Generate:</label>
@@ -1458,6 +1469,7 @@
                                 style="padding: 4px 12px; background: #0e639c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;"
                                 title="Derive public key from this private key and set it in Public Key field">Extract Public Key</button>
                         </div>
+                        <small style="color: #888; display: block; margin-top: 4px;">Used for decryption. Can be left empty if you only have a public key for encryption.</small>
                     </div>
                     <small style="color: #888; display: block; margin-top: 5px;">ECDH-ES uses EC keys (e.g. P-256); RSA-OAEP uses 2048+ bit RSA keys.</small>
                 </div>
@@ -1664,46 +1676,59 @@
         </div>
     </div>
 
-    <!-- JWKS Verify Modal -->
-    <div class="modal" id="jwks-verify-modal">
+    <!-- JWKS Import Modal -->
+    <div class="modal" id="jwks-import-modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>Verify JWT with JWKS</h2>
+                <h2>Import JWKS to Settings</h2>
             </div>
             <div class="modal-body">
                 <p style="color: #aaa; font-size: 13px; margin-bottom: 15px; line-height: 1.4;">
-                    Verify the current JWT against a JSON Web Key Set (JWKS). The key matching the JWT's "kid" will be used for signature verification.
+                    Import keys from a JSON Web Key Set (JWKS) or single JWK into your saved JWT and/or JWE key profiles.
                 </p>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Import Target:</label>
+                    <select id="jwks-import-target"
+                        style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px;">
+                        <option value="auto">Auto-detect (route by use / alg / key type)</option>
+                        <option value="jwt">JWT Settings only</option>
+                        <option value="jwe">JWE Settings only</option>
+                        <option value="both">Both JWT and JWE Settings</option>
+                    </select>
+                    <small style="color: #888; display: block; margin-top: 4px;">Auto-detect assigns signature keys (use: "sig", RS/ES/PS/EdDSA) to JWT, and encryption keys (use: "enc", RSA-OAEP/ECDH-ES) to JWE.</small>
+                </div>
+
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">JWKS Source:</label>
                     <div style="display: flex; gap: 20px; margin-bottom: 10px;">
                         <label style="display: flex; align-items: center; cursor: pointer; color: #ddd; font-size: 13px;">
-                            <input type="radio" name="jwks-source-type" value="json" checked style="margin-right: 6px;"> JSON Text / File
+                            <input type="radio" name="jwks-import-source-type" value="json" checked style="margin-right: 6px;"> JSON Text / File
                         </label>
                         <label style="display: flex; align-items: center; cursor: pointer; color: #ddd; font-size: 13px;">
-                            <input type="radio" name="jwks-source-type" value="url" style="margin-right: 6px;"> Remote JWKS URL
+                            <input type="radio" name="jwks-import-source-type" value="url" style="margin-right: 6px;"> Remote JWKS URL
                         </label>
                     </div>
                 </div>
 
-                <div id="jwks-source-json-section" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">JWKS JSON (or JWK):</label>
-                    <textarea id="jwks-verify-json" rows="8"
+                <div id="jwks-import-json-section" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">JWKS JSON (or single JWK):</label>
+                    <textarea id="jwks-import-json" rows="8"
                         style="width: 100%; padding: 8px; background: #2d2d2d; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace; font-size: 11px; resize: vertical;"
-                        placeholder='{"keys": [{"kty": "RSA", "kid": "...", "n": "...", "e": "AQAB"}]}'></textarea>
+                        placeholder='{"keys": [{"kty": "RSA", "kid": "...", "n": "...", "e": "AQAB", "use": "sig"}]}'></textarea>
                 </div>
 
-                <div id="jwks-source-url-section" style="margin-bottom: 15px; display: none;">
+                <div id="jwks-import-url-section" style="margin-bottom: 15px; display: none;">
                     <label style="display: block; margin-bottom: 5px;">JWKS URL (e.g. .well-known/jwks.json):</label>
-                    <input type="url" id="jwks-verify-url"
+                    <input type="url" id="jwks-import-url"
                         style="width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #3e3e42; border-radius: 3px; font-family: monospace;"
                         placeholder="https://example.com/.well-known/jwks.json" />
                     <small style="color: #888; display: block; margin-top: 5px;">Note: Remote fetching requires the endpoint to allow CORS from this origin.</small>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 12px 15px; border-top: 1px solid #3e3e42;">
-                <button class="btn-secondary" id="jwks-verify-cancel">Cancel</button>
-                <button class="btn-primary" id="jwks-verify-confirm">Verify JWT</button>
+                <button class="btn-secondary" id="jwks-import-cancel">Cancel</button>
+                <button class="btn-primary" id="jwks-import-confirm">Import Keys</button>
             </div>
         </div>
     </div>
@@ -4226,10 +4251,27 @@
                 return;
             }
             const isSymmetric = keyPair.algorithm.startsWith('HS') || keyPair.algorithm === 'dir';
-            const typeLabel = isSymmetric ? 'Symmetric Key' : 'Asymmetric Key Pair';
+            let keyAvailability = '';
+            if (isSymmetric) {
+                keyAvailability = keyPair.secretKey ? '<span style="color: #4ec9b0;">Secret Key ✓</span>' : '<span style="color: #f85149;">Missing Secret Key ✗</span>';
+            } else {
+                const hasPub = Boolean(keyPair.publicKeyPem && keyPair.publicKeyPem.trim());
+                const hasPriv = Boolean(keyPair.privateKeyPem && keyPair.privateKeyPem.trim());
+                if (hasPub && hasPriv) {
+                    keyAvailability = '<span style="color: #4ec9b0;">Public ✓, Private ✓ (Full Key Pair)</span>';
+                } else if (hasPub) {
+                    keyAvailability = '<span style="color: #58a6ff;">Public ✓, Private ✗ (Verify/Encrypt only)</span>';
+                } else if (hasPriv) {
+                    keyAvailability = '<span style="color: #d29922;">Public ✗, Private ✓ (Sign/Decrypt only)</span>';
+                } else {
+                    keyAvailability = '<span style="color: #f85149;">No keys configured ✗</span>';
+                }
+            }
+            const typeLabel = isSymmetric ? 'Symmetric' : 'Asymmetric';
             container.innerHTML = `
                 <div><strong>${roleLabel}:</strong> ${keyPair.name}</div>
                 <div><strong>Algorithm:</strong> ${keyPair.algorithm} &nbsp;|&nbsp; <strong>Type:</strong> ${typeLabel}</div>
+                <div><strong>Status:</strong> ${keyAvailability}</div>
                 <div><strong>Key ID:</strong> ${keyPair.kid || '(none)'}</div>
             `;
         }
@@ -4570,21 +4612,23 @@
                     return false;
                 }
             } else {
-                if (!publicKeyPem || !privateKeyPem) {
-                    updateStatus('JWT key save requires both public and private PEM values');
+                if (!publicKeyPem && !privateKeyPem) {
+                    updateStatus('JWT key save requires a public key, private key, or both');
                     return false;
                 }
 
-                if (!publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
-                    updateStatus('Invalid JWT public key format. Expected PEM SPKI format.');
+                if (publicKeyPem && !publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                    updateStatus('Invalid JWT public key format. Expected PEM SPKI format (-----BEGIN PUBLIC KEY-----).');
                     return false;
                 }
 
-                try {
-                    normalizeRsaPrivateKeyPem(privateKeyPem, algorithm);
-                } catch (e) {
-                    updateStatus(`Invalid JWT private key: ${e.message}`);
-                    return false;
+                if (privateKeyPem) {
+                    try {
+                        normalizeRsaPrivateKeyPem(privateKeyPem, algorithm);
+                    } catch (e) {
+                        updateStatus(`Invalid JWT private key: ${e.message}`);
+                        return false;
+                    }
                 }
             }
 
@@ -4666,21 +4710,23 @@
                     return false;
                 }
             } else if (algorithm.startsWith('ECDH-ES') || algorithm.startsWith('RSA-OAEP')) {
-                if (!publicKeyPem || !privateKeyPem) {
-                    updateStatus('JWE key save requires both public and private PEM values');
+                if (!publicKeyPem && !privateKeyPem) {
+                    updateStatus('JWE key save requires a public key, private key, or both');
                     return false;
                 }
 
-                if (!publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
-                    updateStatus('Invalid JWE public key format. Expected PEM SPKI format.');
+                if (publicKeyPem && !publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
+                    updateStatus('Invalid JWE public key format. Expected PEM SPKI format (-----BEGIN PUBLIC KEY-----).');
                     return false;
                 }
 
-                try {
-                    normalizeRsaPrivateKeyPem(privateKeyPem, algorithm);
-                } catch (e) {
-                    updateStatus(`Invalid JWE private key: ${e.message}`);
-                    return false;
+                if (privateKeyPem) {
+                    try {
+                        normalizeRsaPrivateKeyPem(privateKeyPem, algorithm);
+                    } catch (e) {
+                        updateStatus(`Invalid JWE private key: ${e.message}`);
+                        return false;
+                    }
                 }
             } else {
                 updateStatus(`Unsupported JWE algorithm: ${algorithm}`);
@@ -4852,7 +4898,7 @@
             } else {
                 // Asymmetric key from PEM
                 if (!jwtSettings.privateKeyPem || jwtSettings.privateKeyPem.trim() === '') {
-                    throw new Error(`No private key found. Please generate or paste a key pair in JWT settings.`);
+                    throw new Error(`Private key is empty for ${algorithm}. Please configure a private key in JWT Settings to sign tokens.`);
                 }
 
                 const privateKeyPem = normalizeRsaPrivateKeyPem(jwtSettings.privateKeyPem, algorithm);
@@ -4871,12 +4917,12 @@
             } else {
                 // Asymmetric key - use public key for verification
                 if (!jwtSettings.publicKeyPem || jwtSettings.publicKeyPem.trim() === '') {
-                    throw new Error(`No public key found. Please generate or paste a key pair in JWT settings.`);
+                    throw new Error(`Public key is empty for ${algorithm}. Please configure a public key in JWT Settings to verify signatures.`);
                 }
 
                 // Validate PEM format
                 if (!jwtSettings.publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
-                    throw new Error('Invalid public key format. Expected PEM SPKI format.');
+                    throw new Error('Invalid public key format. Expected PEM SPKI format (-----BEGIN PUBLIC KEY-----).');
                 }
 
                 return await importSPKI(jwtSettings.publicKeyPem, algorithm);
@@ -5353,12 +5399,12 @@
                     encryptKey = new TextEncoder().encode(secretKey);
                 } else if (algorithm.startsWith('ECDH-ES') || algorithm.startsWith('RSA-OAEP')) {
                     if (!jweSettings.publicKeyPem || jweSettings.publicKeyPem.trim() === '') {
-                        updateStatus(`JWE requires a recipient public key for ${algorithm}. Please set it in JWE settings.`);
+                        updateStatus(`Public key is empty for ${algorithm}. Please configure a public key in JWE Settings to encrypt tokens.`);
                         return false;
                     }
 
                     if (!jweSettings.publicKeyPem.includes('-----BEGIN PUBLIC KEY-----')) {
-                        updateStatus('Invalid JWE public key format. Expected PEM SPKI format.');
+                        updateStatus('Invalid JWE public key format. Expected PEM SPKI format (-----BEGIN PUBLIC KEY-----).');
                         return false;
                     }
 
@@ -5493,7 +5539,7 @@
                     decryptKey = new TextEncoder().encode(secretKey);
                 } else if (algorithm.startsWith('ECDH-ES') || algorithm.startsWith('RSA-OAEP')) {
                     if (!jweSettings.privateKeyPem || jweSettings.privateKeyPem.trim() === '') {
-                        updateStatus(`JWE requires a private key for ${algorithm} decryption. Please set it in JWE settings.`);
+                        updateStatus(`Private key is empty for ${algorithm}. Please configure a private key in JWE Settings to decrypt tokens.`);
                         return false;
                     }
 
@@ -5813,9 +5859,15 @@
                 const jwks = { keys: [] };
 
                 for (const kp of allJwt) {
-                    if (kp.publicKeyPem) {
+                    let pubPem = kp.publicKeyPem;
+                    if (!pubPem && kp.privateKeyPem) {
                         try {
-                            const cryptoKey = await importSPKI(kp.publicKeyPem, kp.algorithm, { extractable: true });
+                            pubPem = await derivePublicKeyFromPrivateKey(kp.privateKeyPem);
+                        } catch {}
+                    }
+                    if (pubPem) {
+                        try {
+                            const cryptoKey = await importSPKI(pubPem, kp.algorithm, { extractable: true });
                             const jwk = await jose.exportJWK(cryptoKey);
                             if (kp.kid) jwk.kid = kp.kid;
                             jwk.use = 'sig';
@@ -5826,9 +5878,15 @@
                 }
 
                 for (const kp of allJwe) {
-                    if (kp.publicKeyPem) {
+                    let pubPem = kp.publicKeyPem;
+                    if (!pubPem && kp.privateKeyPem) {
                         try {
-                            const cryptoKey = await importSPKI(kp.publicKeyPem, kp.algorithm, { extractable: true });
+                            pubPem = await derivePublicKeyFromPrivateKey(kp.privateKeyPem);
+                        } catch {}
+                    }
+                    if (pubPem) {
+                        try {
+                            const cryptoKey = await importSPKI(pubPem, kp.algorithm, { extractable: true });
                             const jwk = await jose.exportJWK(cryptoKey);
                             if (kp.kid) jwk.kid = kp.kid;
                             jwk.use = 'enc';
@@ -5853,101 +5911,313 @@
             }
         }
 
-        function openJWKSVerifyModal() {
-            if (!view) {
-                updateStatus('No editor available');
-                return false;
+        function openJWKSImportModal(presetTarget = 'auto') {
+            const targetSelect = document.getElementById('jwks-import-target');
+            if (targetSelect && presetTarget) {
+                targetSelect.value = presetTarget;
             }
-            const text = getSelectedOrAllText();
-            if (!text || !text.trim()) {
-                updateStatus('No JWT in editor to verify');
-                return false;
+            const jsonTextarea = document.getElementById('jwks-import-json');
+            if (jsonTextarea && view) {
+                const text = getSelectedOrAllText();
+                if (text && (text.trim().startsWith('{') || text.includes('"keys"'))) {
+                    jsonTextarea.value = text.trim();
+                }
             }
-            document.getElementById('jwks-verify-modal').style.display = 'flex';
+            document.getElementById('jwks-import-modal').style.display = 'flex';
         }
 
-        async function executeJWKSVerify() {
-            if (!view) {
-                updateStatus('No editor available');
-                return false;
+        async function parseJWKToRecord(rawJwk, targetStore) {
+            const jwk = { ...rawJwk, ext: true };
+            const kid = (jwk.kid || '').trim();
+            const isPrivate = Boolean(jwk.d);
+            const kty = jwk.kty;
+
+            if (kty === 'oct') {
+                let secretKey = '';
+                if (jwk.k) {
+                    try {
+                        const decoded = new TextDecoder('utf-8', { fatal: true }).decode(jose.base64url.decode(jwk.k));
+                        secretKey = decoded.length >= 32 ? decoded : jwk.k;
+                    } catch {
+                        secretKey = jwk.k;
+                    }
+                }
+                let algorithm;
+                if (targetStore === 'jwt') {
+                    algorithm = (jwk.alg && jwk.alg.startsWith('HS')) ? jwk.alg : 'HS256';
+                } else {
+                    algorithm = 'dir';
+                }
+                return {
+                    algorithm,
+                    secretKey,
+                    publicKeyPem: '',
+                    privateKeyPem: '',
+                    kid,
+                    includeKid: Boolean(kid)
+                };
             }
 
-            const state = view.state;
-            const selection = state.selection.main;
-            const hasSelection = selection.anchor !== selection.head;
+            if (kty === 'RSA' || kty === 'EC' || kty === 'OKP') {
+                if (targetStore === 'jwe' && kty === 'OKP') {
+                    throw new Error('OKP / EdDSA keys are not supported for JWE encryption');
+                }
 
-            let text, from, to;
-            if (hasSelection) {
-                from = Math.min(selection.anchor, selection.head);
-                to = Math.max(selection.anchor, selection.head);
-                text = state.doc.sliceString(from, to).trim();
-            } else {
-                from = 0;
-                to = state.doc.length;
-                text = state.doc.toString().trim();
+                let importAlg = jwk.alg;
+                if (!importAlg) {
+                    if (kty === 'RSA') {
+                        importAlg = (jwk.use === 'enc' || targetStore === 'jwe') ? 'RSA-OAEP' : 'RS256';
+                    } else if (kty === 'EC') {
+                        if (jwk.use === 'enc' || targetStore === 'jwe') {
+                            importAlg = 'ECDH-ES';
+                        } else {
+                            if (jwk.crv === 'P-256') importAlg = 'ES256';
+                            else if (jwk.crv === 'P-384') importAlg = 'ES384';
+                            else if (jwk.crv === 'P-521') importAlg = 'ES512';
+                            else importAlg = 'ES256';
+                        }
+                    } else if (kty === 'OKP') {
+                        importAlg = 'EdDSA';
+                    }
+                }
+
+                let storeAlg = importAlg;
+                if (targetStore === 'jwe') {
+                    if (kty === 'RSA' && !storeAlg.startsWith('RSA-OAEP')) {
+                        storeAlg = 'RSA-OAEP';
+                    } else if (kty === 'EC' && !storeAlg.startsWith('ECDH-ES')) {
+                        storeAlg = 'ECDH-ES';
+                    }
+                } else { // jwt
+                    if (kty === 'RSA' && storeAlg.startsWith('RSA-OAEP')) {
+                        storeAlg = 'RS256';
+                    } else if (kty === 'EC' && storeAlg.startsWith('ECDH-ES')) {
+                        storeAlg = jwk.crv === 'P-384' ? 'ES384' : jwk.crv === 'P-521' ? 'ES512' : 'ES256';
+                    }
+                }
+
+                let publicKeyPem = '';
+                let privateKeyPem = '';
+
+                if (isPrivate) {
+                    const privJwk = { ...jwk, ext: true, alg: storeAlg };
+                    const privCryptoKey = await jose.importJWK(privJwk, storeAlg);
+                    privateKeyPem = await exportPKCS8(privCryptoKey);
+
+                    const pubJwk = { ...jwk, ext: true, alg: storeAlg };
+                    delete pubJwk.d;
+                    delete pubJwk.p;
+                    delete pubJwk.q;
+                    delete pubJwk.dp;
+                    delete pubJwk.dq;
+                    delete pubJwk.qi;
+
+                    const pubCryptoKey = await jose.importJWK(pubJwk, storeAlg);
+                    publicKeyPem = await exportSPKI(pubCryptoKey);
+                } else {
+                    const pubJwk = { ...jwk, ext: true, alg: storeAlg };
+                    const pubCryptoKey = await jose.importJWK(pubJwk, storeAlg);
+                    publicKeyPem = await exportSPKI(pubCryptoKey);
+                }
+
+                return {
+                    algorithm: storeAlg,
+                    secretKey: '',
+                    publicKeyPem,
+                    privateKeyPem,
+                    kid,
+                    includeKid: Boolean(kid)
+                };
             }
 
-            if (!text) {
-                updateStatus('No JWT to verify');
-                return false;
-            }
+            throw new Error(`Unsupported key type (kty): "${kty}"`);
+        }
 
-            const sourceType = document.querySelector('input[name="jwks-source-type"]:checked').value;
-            let keySet;
+        async function importJWKSToSettings() {
+            const targetChoice = document.getElementById('jwks-import-target').value;
+            const sourceType = document.querySelector('input[name="jwks-import-source-type"]:checked').value;
+            let parsed;
 
             try {
                 if (sourceType === 'json') {
-                    const rawJson = document.getElementById('jwks-verify-json').value.trim();
+                    const rawJson = document.getElementById('jwks-import-json').value.trim();
                     if (!rawJson) {
-                        updateStatus('Please paste JWKS JSON to verify against');
+                        updateStatus('Please paste JWKS JSON or JWK to import');
                         return false;
                     }
-                    let parsed;
                     try {
                         parsed = JSON.parse(rawJson);
                     } catch {
                         updateStatus('JWKS must be valid JSON');
                         return false;
                     }
-                    const jwksObj = Array.isArray(parsed) ? { keys: parsed } : (parsed.keys ? parsed : { keys: [parsed] });
-                    keySet = jose.createLocalJWKSet(jwksObj);
                 } else {
-                    const rawUrl = document.getElementById('jwks-verify-url').value.trim();
+                    const rawUrl = document.getElementById('jwks-import-url').value.trim();
                     if (!rawUrl) {
                         updateStatus('Please enter a remote JWKS URL');
                         return false;
                     }
+                    let url;
                     try {
-                        const url = new URL(rawUrl);
-                        keySet = jose.createRemoteJWKSet(url);
+                        url = new URL(rawUrl);
                     } catch {
                         updateStatus('Invalid JWKS URL format');
                         return false;
                     }
+
+                    updateStatus('Fetching remote JWKS...');
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                    }
+                    parsed = await response.json();
                 }
 
-                updateStatus('Verifying JWT with JWKS...');
-                const { payload, protectedHeader } = await jose.jwtVerify(text, keySet);
+                let keys;
+                if (Array.isArray(parsed)) {
+                    keys = parsed;
+                } else if (parsed && Array.isArray(parsed.keys)) {
+                    keys = parsed.keys;
+                } else if (parsed && typeof parsed === 'object' && parsed.kty) {
+                    keys = [parsed];
+                } else {
+                    updateStatus('Input must be a valid JWKS object with a "keys" array or a single JWK object');
+                    return false;
+                }
 
-                const formattedPayload = JSON.stringify(payload, null, 2);
-                view.dispatch({
-                    changes: { from, to, insert: formattedPayload }
-                });
+                if (keys.length === 0) {
+                    updateStatus('JWKS contains no keys to import');
+                    return false;
+                }
 
-                document.getElementById('jwks-verify-modal').style.display = 'none';
-                const kidInfo = protectedHeader?.kid ? ` (kid: ${protectedHeader.kid})` : '';
-                updateStatus(`JWT verified successfully with JWKS${kidInfo} (alg: ${protectedHeader?.alg || 'unspecified'})`);
+                jwtKeyPairs = await loadKeyPairs('jwtKeyPairs');
+                jweKeyPairs = await loadKeyPairs('jweKeyPairs');
+
+                let jwtImportedCount = 0;
+                let jweImportedCount = 0;
+                const errors = [];
+                const newlySavedJwtKeys = [];
+                const newlySavedJweKeys = [];
+
+                for (let i = 0; i < keys.length; i++) {
+                    const jwk = keys[i];
+                    const destinations = [];
+
+                    if (targetChoice === 'both') {
+                        destinations.push('jwt', 'jwe');
+                    } else if (targetChoice === 'jwt') {
+                        destinations.push('jwt');
+                    } else if (targetChoice === 'jwe') {
+                        destinations.push('jwe');
+                    } else {
+                        // 'auto'
+                        if (jwk.use === 'enc') {
+                            destinations.push('jwe');
+                        } else if (jwk.use === 'sig') {
+                            destinations.push('jwt');
+                        } else if (jwk.alg) {
+                            if (jwk.alg.startsWith('RSA-OAEP') || jwk.alg.startsWith('ECDH') || jwk.alg.startsWith('A')) {
+                                destinations.push('jwe');
+                            } else {
+                                destinations.push('jwt');
+                            }
+                        } else {
+                            destinations.push('jwt');
+                        }
+                    }
+
+                    for (const storeType of destinations) {
+                        try {
+                            const parsedRecord = await parseJWKToRecord(jwk, storeType);
+                            const storeName = storeType === 'jwt' ? 'jwtKeyPairs' : 'jweKeyPairs';
+                            const existingList = storeType === 'jwt' ? jwtKeyPairs : jweKeyPairs;
+
+                            const existing = parsedRecord.kid
+                                ? existingList.find(k => k.kid && k.kid === parsedRecord.kid)
+                                : null;
+
+                            const defaultName = parsedRecord.kid
+                                ? `JWKS: ${parsedRecord.kid}`
+                                : `JWKS Key ${i + 1} (${jwk.kty}${parsedRecord.algorithm ? ' ' + parsedRecord.algorithm : ''})`;
+
+                            const profileName = existing ? existing.name : defaultName;
+
+                            const recordToSave = createKeyPairRecord({
+                                id: existing ? existing.id : crypto.randomUUID(),
+                                name: profileName,
+                                algorithm: parsedRecord.algorithm,
+                                secretKey: parsedRecord.secretKey,
+                                publicKeyPem: parsedRecord.publicKeyPem,
+                                privateKeyPem: parsedRecord.privateKeyPem,
+                                kid: parsedRecord.kid,
+                                includeKid: parsedRecord.includeKid
+                            });
+
+                            await saveKeyPair(storeName, recordToSave);
+
+                            if (storeType === 'jwt') {
+                                jwtImportedCount++;
+                                newlySavedJwtKeys.push(recordToSave);
+                            } else {
+                                jweImportedCount++;
+                                newlySavedJweKeys.push(recordToSave);
+                            }
+                        } catch (err) {
+                            errors.push(`Key ${i + 1}${jwk.kid ? ` (${jwk.kid})` : ''} [${storeType.toUpperCase()}]: ${err.message}`);
+                        }
+                    }
+                }
+
+                if (jwtImportedCount === 0 && jweImportedCount === 0) {
+                    updateStatus(`Failed to import keys: ${errors.join(', ')}`);
+                    return false;
+                }
+
+                // Refresh state and UI
+                if (jwtImportedCount > 0) {
+                    jwtKeyPairs = await loadKeyPairs('jwtKeyPairs');
+                    const firstKey = newlySavedJwtKeys[0];
+                    if (firstKey) {
+                        jwtSettings.algorithm = firstKey.algorithm;
+                        jwtSettings.secretKey = firstKey.secretKey;
+                        jwtSettings.publicKeyPem = firstKey.publicKeyPem;
+                        jwtSettings.privateKeyPem = firstKey.privateKeyPem;
+                        jwtSettings.kid = firstKey.kid || '';
+                        jwtSettings.includeKid = Boolean(firstKey.includeKid);
+                        jwtSettings.activeKeyPairId = firstKey.id;
+                        await saveJWTSettings(jwtSettings);
+                    }
+                    updateJWTSettingsUI();
+                }
+
+                if (jweImportedCount > 0) {
+                    jweKeyPairs = await loadKeyPairs('jweKeyPairs');
+                    const firstKey = newlySavedJweKeys[0];
+                    if (firstKey) {
+                        jweSettings.algorithm = firstKey.algorithm;
+                        jweSettings.secretKey = firstKey.secretKey;
+                        jweSettings.publicKeyPem = firstKey.publicKeyPem;
+                        jweSettings.privateKeyPem = firstKey.privateKeyPem;
+                        jweSettings.kid = firstKey.kid || '';
+                        jweSettings.includeKid = Boolean(firstKey.includeKid);
+                        jweSettings.activeKeyPairId = firstKey.id;
+                        await saveJWESettings(jweSettings);
+                    }
+                    updateJWESettingsUI();
+                }
+
+                if (typeof updateNestedJWTSettingsUI === 'function') {
+                    updateNestedJWTSettingsUI();
+                }
+
+                document.getElementById('jwks-import-modal').style.display = 'none';
+
+                const total = jwtImportedCount + jweImportedCount;
+                const errNote = errors.length > 0 ? ` (${errors.length} skipped)` : '';
+                updateStatus(`Successfully imported ${total} key profile(s) from JWKS (${jwtImportedCount} JWT, ${jweImportedCount} JWE)${errNote}`);
                 return true;
             } catch (e) {
-                if (e.code === 'ERR_JWT_EXPIRED') {
-                    updateStatus('JWT verification failed: Token has expired');
-                } else if (e.code === 'ERR_JWKS_NO_MATCHING_KEY') {
-                    updateStatus('JWT verification failed: No matching key found in JWKS for kid');
-                } else if (e.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
-                    updateStatus('JWT verification failed: Invalid signature');
-                } else {
-                    updateStatus(`JWT verification failed: ${e.message}`);
-                }
+                updateStatus(`Failed to import JWKS: ${e.message}`);
                 return false;
             }
         }
@@ -6020,7 +6290,7 @@
                     jwtSignKey = new TextEncoder().encode(signingJwtKey.secretKey);
                 } else {
                     if (!signingJwtKey.privateKeyPem) {
-                        updateStatus(`${authorRole} key "${signingJwtKey.name}" is missing a private key for signing`);
+                        updateStatus(`Cannot sign Nested JWT: ${authorRole} key "${signingJwtKey.name}" is missing a private key. Please configure the private key in JWT Settings.`);
                         return false;
                     }
                     const privateKeyPem = normalizeRsaPrivateKeyPem(signingJwtKey.privateKeyPem, signingJwtKey.algorithm);
@@ -6053,7 +6323,7 @@
                     jweEncryptKey = new TextEncoder().encode(encryptingJweKey.secretKey);
                 } else {
                     if (!encryptingJweKey.publicKeyPem) {
-                        updateStatus(`${targetRole} key "${encryptingJweKey.name}" is missing a public key for encryption`);
+                        updateStatus(`Cannot encrypt Nested JWT: ${targetRole} key "${encryptingJweKey.name}" is missing a public key. Please configure the public key in JWE Settings.`);
                         return false;
                     }
                     jweEncryptKey = await importSPKI(encryptingJweKey.publicKeyPem, encryptingJweKey.algorithm);
@@ -6153,7 +6423,7 @@
                     decryptKey = new TextEncoder().encode(decryptingJweKey.secretKey);
                 } else {
                     if (!decryptingJweKey.privateKeyPem) {
-                        updateStatus(`${actorRole} key "${decryptingJweKey.name}" requires a private key for decryption`);
+                        updateStatus(`Cannot decrypt Nested JWT: ${actorRole} key "${decryptingJweKey.name}" is missing a private key. Please configure the private key in JWE Settings.`);
                         return false;
                     }
                     const normalizedKey = algorithm.startsWith('RSA-OAEP')
@@ -6181,7 +6451,7 @@
                     verifyKey = new TextEncoder().encode(verifyingJwtKey.secretKey);
                 } else {
                     if (!verifyingJwtKey.publicKeyPem) {
-                        updateStatus(`${peerRole} key "${verifyingJwtKey.name}" requires a public key to verify`);
+                        updateStatus(`Cannot verify inner Nested JWT signature: ${peerRole} key "${verifyingJwtKey.name}" is missing a public key. Please configure the public key in JWT Settings.`);
                         return false;
                     }
                     verifyKey = await importSPKI(verifyingJwtKey.publicKeyPem, verifyingJwtKey.algorithm);
@@ -6276,7 +6546,7 @@
                     decryptKey = new TextEncoder().encode(decryptingJweKey.secretKey);
                 } else {
                     if (!decryptingJweKey.privateKeyPem) {
-                        updateStatus(`${actorRole} key "${decryptingJweKey.name}" requires a private key for decryption`);
+                        updateStatus(`Cannot decrypt Nested JWT: ${actorRole} key "${decryptingJweKey.name}" is missing a private key. Please configure the private key in JWE Settings.`);
                         return false;
                     }
                     const normalizedKey = algorithm.startsWith('RSA-OAEP')
@@ -10282,8 +10552,8 @@
             jwksMenu.classList.remove('show');
         });
 
-        document.getElementById('verify-jwt-with-jwks').addEventListener('click', () => {
-            openJWKSVerifyModal();
+        document.getElementById('import-jwks-to-settings').addEventListener('click', () => {
+            openJWKSImportModal('auto');
             jwksMenu.classList.remove('show');
         });
 
@@ -10569,6 +10839,10 @@
             }
         });
 
+        document.getElementById('jwt-import-jwks-btn').addEventListener('click', () => {
+            openJWKSImportModal('jwt');
+        });
+
         // Close JWT settings modal when clicking outside
         jwtSettingsModal.addEventListener('click', (e) => {
             if (e.target === jwtSettingsModal) {
@@ -10680,6 +10954,10 @@
             } catch (e) {
                 updateStatus(`Failed to extract public key: ${e.message}`);
             }
+        });
+
+        document.getElementById('jwe-import-jwks-btn').addEventListener('click', () => {
+            openJWKSImportModal('jwe');
         });
 
         // JWE Auto Exp checkbox handler
@@ -10888,28 +11166,28 @@
             }
         });
 
-        // JWKS Verify Modal
-        const jwksVerifyModal = document.getElementById('jwks-verify-modal');
+        // JWKS Import Modal
+        const jwksImportModal = document.getElementById('jwks-import-modal');
 
-        document.querySelectorAll('input[name="jwks-source-type"]').forEach((radio) => {
+        document.querySelectorAll('input[name="jwks-import-source-type"]').forEach((radio) => {
             radio.addEventListener('change', (e) => {
                 const isJson = e.target.value === 'json';
-                document.getElementById('jwks-source-json-section').style.display = isJson ? '' : 'none';
-                document.getElementById('jwks-source-url-section').style.display = isJson ? 'none' : '';
+                document.getElementById('jwks-import-json-section').style.display = isJson ? '' : 'none';
+                document.getElementById('jwks-import-url-section').style.display = isJson ? 'none' : '';
             });
         });
 
-        document.getElementById('jwks-verify-cancel').addEventListener('click', () => {
-            jwksVerifyModal.style.display = 'none';
+        document.getElementById('jwks-import-cancel').addEventListener('click', () => {
+            jwksImportModal.style.display = 'none';
         });
 
-        document.getElementById('jwks-verify-confirm').addEventListener('click', () => {
-            runCryptoAction('JWKS', executeJWKSVerify);
+        document.getElementById('jwks-import-confirm').addEventListener('click', () => {
+            runCryptoAction('JWKS', importJWKSToSettings);
         });
 
-        jwksVerifyModal.addEventListener('click', (e) => {
-            if (e.target === jwksVerifyModal) {
-                jwksVerifyModal.style.display = 'none';
+        jwksImportModal.addEventListener('click', (e) => {
+            if (e.target === jwksImportModal) {
+                jwksImportModal.style.display = 'none';
             }
         });
 
@@ -11011,7 +11289,8 @@
             jwksToPem: () => runCryptoAction('JWKS', convertJWKSToPEM),
             pemToJwks: () => runCryptoAction('JWKS', convertPEMToJWKS),
             publicKeyFromPrivate: () => runCryptoAction('JWKS', generatePublicKeyAction),
-            exportSavedJwks: () => runCryptoAction('JWKS', exportSavedKeysAsJWKS)
+            exportSavedJwks: () => runCryptoAction('JWKS', exportSavedKeysAsJWKS),
+            importJwks: () => openJWKSImportModal('auto')
         };
 
         function readShortcut() {

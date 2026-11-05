@@ -1,4 +1,4 @@
-const CACHE_NAME = 'universal-editor-v3';
+const CACHE_NAME = 'universal-editor-v5';
 const APP_SHELL = [
     './',
     './index.html',
